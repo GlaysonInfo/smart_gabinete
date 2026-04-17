@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: smart-gabinete
+    runtime: python
+    plan: starter
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn apps.api.app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: GABINETE_IA_DATA_DIR
+        value: /opt/render/project/data
+      - key: GABINETE_IA_DB_FILE
+        value: /opt/render/project/data/gabinete_ia.json
+      - key: GABINETE_IA_UPLOAD_DIR
+        value: /opt/render/project/data/uploads
+      - key: GABINETE_IA_JWT_SECRET
+        generateValue: true
+      - key: GABINETE_IA_PASSWORD_PEPPER
+        generateValue: true
+    disk:
+      name: gabinete-data
+      mountPath: /opt/render/project/data
+      sizeGB: 1

@@ -78,6 +78,39 @@ GitHub Pages nao executa Python/FastAPI, entao ele nao publica o sistema complet
 Para publicar o sistema funcional, use uma hospedagem de aplicacao, por exemplo Render, Railway, Fly.io ou VPS.
 GitHub Pages pode servir apenas uma pagina estatica, documentacao ou demo desacoplada da API.
 
+### Publicar no Render
+
+O repositorio ja inclui o arquivo `render.yaml` para subir a aplicacao completa no Render.
+
+Passos:
+
+1. Acesse o dashboard do Render.
+2. Escolha `New +` -> `Blueprint`.
+3. Conecte o repositorio `GlaysonInfo/smart_gabinete`.
+4. Confirme a criacao do servico `smart-gabinete`.
+5. Aguarde o deploy inicial.
+
+Configuracao aplicada pelo blueprint:
+
+- Build command: `pip install -r requirements.txt`
+- Start command: `uvicorn apps.api.app.main:app --host 0.0.0.0 --port $PORT`
+- Health check: `/health`
+- Disco persistente montado em `/opt/render/project/data`
+- Segredos gerados automaticamente para JWT e pepper
+
+Depois do deploy, use:
+
+```text
+https://SEU-SERVICO.onrender.com/app/
+https://SEU-SERVICO.onrender.com/mobile/
+https://SEU-SERVICO.onrender.com/docs
+```
+
+Observacao:
+
+- O projeto usa persistencia local em JSON. Sem disco persistente, os dados podem ser perdidos a cada novo deploy.
+- O blueprint ja prepara esse armazenamento em `/opt/render/project/data`.
+
 ## Validar
 
 ```powershell
