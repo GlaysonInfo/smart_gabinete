@@ -79,6 +79,31 @@ const state = {
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => Array.from(document.querySelectorAll(selector));
 
+function isCompactSidebar() {
+  return window.matchMedia("(max-width: 920px)").matches;
+}
+
+function openSidebar() {
+  if (!isCompactSidebar()) return;
+  $(".sidebar")?.classList.add("open");
+  $("#sidebar-overlay")?.classList.remove("hidden");
+  $("#sidebar-toggle")?.setAttribute("aria-expanded", "true");
+}
+
+function closeSidebar() {
+  $(".sidebar")?.classList.remove("open");
+  $("#sidebar-overlay")?.classList.add("hidden");
+  $("#sidebar-toggle")?.setAttribute("aria-expanded", "false");
+}
+
+function toggleSidebar() {
+  if ($(".sidebar")?.classList.contains("open")) {
+    closeSidebar();
+    return;
+  }
+  openSidebar();
+}
+
 function escapeHtml(value) {
   return String(value ?? "")
     .replaceAll("&", "&amp;")
@@ -1500,6 +1525,7 @@ function navigateTo(sectionId) {
   $$(".module").forEach((item) => item.classList.toggle("active", item.id === sectionId));
   const button = $(`.module-nav button[data-section="${sectionId}"]`);
   if (button) $(".topbar h1").textContent = button.textContent;
+  if (isCompactSidebar()) closeSidebar();
 }
 
 function navigateCadastroTab(tabId) {
@@ -1552,6 +1578,11 @@ function bindEvents() {
     state.editingDemandId = null;
     $("#demand-edit-form").reset();
     $("#demand-edit-form").classList.add("hidden");
+  });
+  $("#sidebar-toggle")?.addEventListener("click", toggleSidebar);
+  $("#sidebar-overlay")?.addEventListener("click", closeSidebar);
+  window.addEventListener("resize", () => {
+    if (!isCompactSidebar()) closeSidebar();
   });
   $("#logout").addEventListener("click", () => {
     state.token = null;

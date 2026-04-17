@@ -366,6 +366,19 @@ legend {
   flex-wrap: wrap;
 }
 
+.sidebar-toggle,
+.sidebar-overlay {
+  display: none;
+}
+
+.sidebar-toggle {
+  min-width: 46px;
+  min-height: 46px;
+  padding: 0;
+  font-size: 22px;
+  line-height: 1;
+}
+
 .search-box {
   display: grid;
   gap: 6px;
@@ -1338,8 +1351,34 @@ legend {
   }
 
   .sidebar {
-    position: static;
-    height: auto;
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 40;
+    width: min(84vw, 320px);
+    height: 100vh;
+    transform: translateX(-100%);
+    transition: transform 0.22s ease;
+    box-shadow: var(--shadow-md);
+  }
+
+  .sidebar.open {
+    transform: translateX(0);
+  }
+
+  .sidebar-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 30;
+    display: block;
+    border: 0;
+    border-radius: 0;
+    padding: 0;
+    background: rgb(12 24 40 / 0.34);
+  }
+
+  .sidebar-toggle {
+    display: inline-flex;
   }
 
   .module-nav {
