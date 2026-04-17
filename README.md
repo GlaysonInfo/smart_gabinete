@@ -51,6 +51,33 @@ http://192.168.0.15:8010/app/
 http://192.168.0.15:8010/mobile/
 ```
 
+## Publicacao
+
+### GitHub Pages
+
+O campo `Custom domain` do GitHub Pages aceita apenas dominios reais, como `app.seudominio.com`.
+
+Nao use a URL do repositorio, por exemplo:
+
+```text
+github.com/GlaysonInfo/smart_gabinete
+```
+
+Se quiser usar o dominio padrao do GitHub Pages, deixe `Custom domain` em branco.
+O endereco padrao do projeto sera:
+
+```text
+https://glaysoninfo.github.io/smart_gabinete/
+```
+
+### Limite importante
+
+Este projeto nao e apenas frontend estatico. O web app e o app mobile dependem da API FastAPI em `/api/v1`.
+GitHub Pages nao executa Python/FastAPI, entao ele nao publica o sistema completo sozinho.
+
+Para publicar o sistema funcional, use uma hospedagem de aplicacao, por exemplo Render, Railway, Fly.io ou VPS.
+GitHub Pages pode servir apenas uma pagina estatica, documentacao ou demo desacoplada da API.
+
 ## Validar
 
 ```powershell
