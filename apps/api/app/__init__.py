@@ -1,0 +1,2 @@
+"""Gabinete IA API package."""
+

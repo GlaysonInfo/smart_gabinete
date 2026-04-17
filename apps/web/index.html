@@ -1,0 +1,645 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Gabinete IA</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div id="login" class="login-view">
+      <section class="login-copy">
+        <p class="eyebrow">Inteligência de Gabinete</p>
+        <h1>Sistema de Gestão Política</h1>
+        <p>Relacionamento politico, demandas, agenda, emendas e domínio territorial com estratégia e eficiência.</p>
+        <form id="login-form" class="login-form">
+          <label>
+            E-mail
+            <input name="email_login" type="email" value="chefe@gabineteia.local" autocomplete="username" />
+          </label>
+          <label>
+            Senha
+            <input name="senha" type="password" value="Senha@123" autocomplete="current-password" />
+          </label>
+          <button type="submit">Entrar</button>
+          <p id="login-message" class="message"></p>
+        </form>
+      </section>
+      <img
+        class="login-photo"
+        src="https://images.unsplash.com/photo-1497366754035-f200968a6e72?auto=format&fit=crop&w=1200&q=80"
+        alt="Equipe trabalhando em sala moderna"
+      />
+    </div>
+
+    <div id="app" class="app-view hidden">
+      <aside class="sidebar">
+        <div class="brand">
+          <img src="/imagens/Logo%20Gabinete%20IA.jpg" alt="Logo Inteligencia de Gabinete" />
+        </div>
+        <nav class="module-nav" aria-label="Modulos">
+          <button data-section="executivo" class="active">Comando Central</button>
+          <button data-section="crm">Relacionamento</button>
+          <button data-section="atendimento">Atendimento</button>
+          <button data-section="agenda">Agenda</button>
+          <button data-section="legislativo">Legislativo</button>
+          <button data-section="emendas">Emendas</button>
+          <button data-section="oficios">Oficios</button>
+          <button data-section="cadastros">Cadastros</button>
+          <button data-section="compliance">Conformidade</button>
+          <button data-section="mobile">Aplicativo</button>
+        </nav>
+        <div class="sidebar-footer">
+          <span id="sync-status">Pronto</span>
+          <small>Campo sincronizado</small>
+        </div>
+      </aside>
+
+      <div class="main-area">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow">Operações do Mandato</p>
+            <h1>Gabinete Centralizado</h1>
+          </div>
+          <div class="top-actions">
+            <label class="search-box">
+              <span>Busca rapida</span>
+              <input id="global-search" type="search" placeholder="Nome, CPF, telefone, bairro ou observacao" />
+            </label>
+            <button id="refresh" type="button" class="secondary">Atualizar</button>
+            <span id="user-chip" class="chip">Carregando</span>
+            <button id="logout" type="button" class="secondary">Sair</button>
+          </div>
+        </header>
+
+        <section id="search-results" class="search-results hidden" aria-live="polite"></section>
+
+        <main class="workspace">
+          <section class="content">
+            <section id="executivo" class="module active">
+              <div class="section-title">
+                <div>
+                  <p class="eyebrow">Painel estrategico</p>
+                  <h2>Prioridades, territorio e entregas</h2>
+                </div>
+                <button id="ai-first-demand" type="button">Resumir demanda selecionada</button>
+              </div>
+
+              <div id="metric-grid" class="metric-grid"></div>
+
+              <div class="command-grid">
+                <section class="surface">
+                  <div class="section-head">
+                    <h3>Mapa de calor territorial</h3>
+                    <span>Demandas, contatos e liderancas</span>
+                  </div>
+                  <div id="heatmap-grid" class="heatmap-grid"></div>
+                </section>
+
+                <section class="surface">
+                  <div class="section-head">
+                    <h3>Sentimento publico</h3>
+                    <span>Ultimas 24h</span>
+                  </div>
+                  <div id="sentiment-panel" class="sentiment-panel"></div>
+                </section>
+
+                <section class="surface">
+                  <div class="section-head">
+                    <h3>Emendas e orcamento</h3>
+                    <span>Execucao financeira</span>
+                  </div>
+                  <div id="amendment-summary" class="budget-summary"></div>
+                </section>
+
+                <section class="surface">
+                  <div class="section-head">
+                    <h3>Alertas de prazo</h3>
+                    <span>Acompanhamento e risco politico</span>
+                  </div>
+                  <div id="alert-list" class="list compact"></div>
+                </section>
+              </div>
+            </section>
+
+            <section id="crm" class="module">
+              <div class="section-title">
+                <div>
+                  <p class="eyebrow">Relacionamento politico</p>
+                  <h2>Beneficiário</h2>
+                </div>
+                <select id="crm-contact-select" class="compact-select" aria-label="Selecionar contato"></select>
+              </div>
+
+              <div class="crm-grid">
+                <section id="crm-profile" class="surface profile-panel"></section>
+                <section class="surface">
+                  <div class="section-head">
+                    <h3>Historico do relacionamento</h3>
+                    <span>Interacoes, demandas e apoio</span>
+                  </div>
+                  <div id="crm-timeline" class="timeline"></div>
+                </section>
+              </div>
+
+              <form id="interaction-form" class="form-grid">
+                <h3>Nova interacao</h3>
+                <label>Contato
+                  <select id="interaction-contact-select" name="cidadao_id" required></select>
+                </label>
+                <label>Canal
+                  <select name="canal_contato">
+                    <option value="PRESENCIAL">Presencial</option>
+                    <option value="WHATSAPP">WhatsApp</option>
+                    <option value="TELEFONE">Telefone</option>
+                    <option value="EMAIL">E-mail</option>
+                    <option value="REDE_SOCIAL">Rede social</option>
+                  </select>
+                </label>
+                <label>Tipo
+                  <select name="tipo_interacao">
+                    <option value="ATENDIMENTO">Atendimento</option>
+                    <option value="REUNIAO_BASE">Reuniao da Base</option>
+                    <option value="VISITA_BAIRRO">Visita de Bairro</option>
+                    <option value="AGENDA_LIDERANCAS">Agenda com Liderancas</option>
+                    <option value="PESQUISA_OPINIAO">Pesquisa de Opiniao</option>
+                    <option value="MOBILIZACAO">Mobilizacao</option>
+                  </select>
+                </label>
+                <label>Assunto<input name="assunto" required /></label>
+                <label>Descricao detalhada<textarea name="descricao_detalhada"></textarea></label>
+                <label>Proxima acao<input name="proxima_acao" /></label>
+                <button type="submit">Registrar interacao</button>
+                <p id="interaction-message" class="message"></p>
+              </form>
+            </section>
+
+            <section id="atendimento" class="module">
+              <div class="section-title">
+                <div>
+                  <p class="eyebrow">Atendimento politico</p>
+                  <h2>Demandas com responsavel, territorio e prazo</h2>
+                </div>
+              </div>
+              <div class="workflow-toolbar">
+                <span class="summary-pill">Triagem -> Instrucao -> Orgao publico -> Conclusao</span>
+                <button type="button" class="secondary" onclick="document.getElementById('demand-form').scrollIntoView({ behavior: 'smooth', block: 'start' })">Nova demanda</button>
+              </div>
+              <div id="demand-board" class="demand-board"></div>
+              <form id="demand-edit-form" class="form-grid hidden">
+                <h3>Editar demanda</h3>
+                <label>Titulo<input name="titulo" required /></label>
+                <label>Tipo de demanda
+                  <select name="tipo_demanda">
+                    <option value="ATENDIMENTO_SOCIAL">Atendimento social</option>
+                    <option value="SAUDE">Saude</option>
+                    <option value="URBANA">Urbana</option>
+                    <option value="DOCUMENTO">Documento</option>
+                    <option value="INDICACAO">Indicacao</option>
+                    <option value="CONVENIO">Convenio</option>
+                    <option value="OUTRA">Outra</option>
+                  </select>
+                </label>
+                <label>Responsavel
+                  <select id="demand-edit-user-select" name="responsavel_usuario_id"></select>
+                </label>
+                <label>Territorio
+                  <select id="demand-edit-territory-select" name="territorio_id"></select>
+                </label>
+                <label>Prioridade
+                  <select name="prioridade">
+                    <option>MEDIA</option>
+                    <option>ALTA</option>
+                    <option>CRITICA</option>
+                    <option>BAIXA</option>
+                  </select>
+                </label>
+                <label>Situacao
+                  <select name="status">
+                    <option value="ABERTA">Nova</option>
+                    <option value="EM_TRIAGEM">Em triagem</option>
+                    <option value="EM_ATENDIMENTO">Em instrucao</option>
+                    <option value="AGUARDANDO_RETORNO">Aguardando orgao</option>
+                    <option value="CONCLUIDA">Concluida</option>
+                    <option value="ARQUIVADA">Arquivada</option>
+                  </select>
+                </label>
+                <label>Descricao<textarea name="descricao" required></textarea></label>
+                <button type="submit">Salvar alteracoes</button>
+                <button id="cancel-demand-edit" type="button" class="secondary">Cancelar</button>
+                <p id="demand-edit-message" class="message"></p>
+              </form>
+              <form id="demand-form" class="form-grid">
+                <h3>Nova demanda</h3>
+                <label>Demandante cadastrado
+                  <select id="demand-contact-select" name="cidadao_id" required>
+                    <option value="">Cadastre ou selecione um demandante</option>
+                  </select>
+                </label>
+                <label>Beneficiario
+                  <input name="beneficiario_nome" placeholder="Pessoa, familia ou comunidade atendida" />
+                </label>
+                <label>Titulo<input name="titulo" required /></label>
+                <label>Tipo de demanda
+                  <select name="tipo_demanda">
+                    <option value="ATENDIMENTO_SOCIAL">Atendimento social</option>
+                    <option value="SAUDE">Saude</option>
+                    <option value="URBANA">Urbana</option>
+                    <option value="DOCUMENTO">Documento</option>
+                    <option value="INDICACAO">Indicacao</option>
+                    <option value="CONVENIO">Convenio</option>
+                    <option value="OUTRA">Outra</option>
+                  </select>
+                </label>
+                <label>Descricao<textarea name="descricao" required></textarea></label>
+                <label>Territorio
+                  <select id="demand-territory-select" name="territorio_id"></select>
+                </label>
+                <label>Responsavel
+                  <select id="demand-user-select" name="responsavel_usuario_id"></select>
+                </label>
+                <label>Prioridade
+                  <select name="prioridade">
+                    <option>MEDIA</option>
+                    <option>ALTA</option>
+                    <option>CRITICA</option>
+                    <option>BAIXA</option>
+                  </select>
+                </label>
+                <button type="submit">Criar demanda</button>
+                <p id="demand-message" class="message"></p>
+              </form>
+            </section>
+
+            <section id="agenda" class="module">
+              <div class="section-title">
+                <div>
+                  <p class="eyebrow">Agenda multiusuario</p>
+                  <h2>Compromissos, execucao e relatorio</h2>
+                </div>
+                <p id="agenda-summary" class="summary-pill">Carregando agenda.</p>
+              </div>
+              <div id="agenda-list" class="list"></div>
+              <form id="agenda-form" class="form-grid">
+                <h3>Novo compromisso</h3>
+                <label>Tipo
+                  <select name="tipo_agenda">
+                    <option value="REUNIAO_BASE">Reuniao da Base</option>
+                    <option value="VISITA_BAIRRO">Visita de Bairro</option>
+                    <option value="AGENDA_LIDERANCAS">Agenda com Liderancas</option>
+                    <option value="ACAO_SAUDE">Acao de Saude</option>
+                    <option value="AULA_ABERTA">Aula Aberta</option>
+                    <option value="MUTIRAO_SOCIAL">Mutirao Social</option>
+                    <option value="EVENTO_GRANDE">Evento Grande</option>
+                    <option value="ATENDIMENTO_COMUNITARIO">Atendimento Comunitario</option>
+                  </select>
+                </label>
+                <label>Titulo<input name="titulo" required /></label>
+                <label>Data e hora inicio<input name="data_inicio" type="datetime-local" required /></label>
+                <label>Data e hora fim<input name="data_fim" type="datetime-local" required /></label>
+                <label>Local<input name="local_texto" /></label>
+                <label>Responsavel
+                  <select id="agenda-user-select" name="responsavel_usuario_id"></select>
+                </label>
+                <label>Agenda do parlamentar?
+                  <select name="eh_agenda_vereador">
+                    <option value="true">Sim</option>
+                    <option value="false">Nao</option>
+                  </select>
+                </label>
+                <label>Descricao<textarea name="descricao"></textarea></label>
+                <button type="submit">Cadastrar compromisso</button>
+                <p id="agenda-message" class="message"></p>
+              </form>
+              <form id="agenda-report-form" class="form-grid">
+                <h3>Relatorio de execucao</h3>
+                <label>Compromisso
+                  <select id="agenda-report-select" name="evento_id" required></select>
+                </label>
+                <label>Publico estimado<input name="publico_estimado" type="number" min="0" /></label>
+                <label>Resultado e encaminhamentos<textarea name="relatorio_execucao" required></textarea></label>
+                <label>Fotos ou documentos<input name="arquivo" type="file" /></label>
+                <button type="submit">Marcar realizado e salvar relatorio</button>
+                <p id="agenda-report-message" class="message"></p>
+              </form>
+            </section>
+
+            <section id="legislativo" class="module">
+              <div class="section-title">
+                <div>
+                  <p class="eyebrow">Controle legislativo</p>
+                  <h2>Proposicoes, votacoes e discursos</h2>
+                </div>
+              </div>
+              <div id="legislative-kanban" class="kanban"></div>
+              <form id="proposition-form" class="form-grid">
+                <h3>Nova proposicao</h3>
+                <label>Titulo<input name="titulo" required /></label>
+                <label>Numero<input name="numero" placeholder="PL 001/2026" /></label>
+                <label>Tipo
+                  <select name="tipo">
+                    <option value="PROJETO_LEI">Projeto de Lei</option>
+                    <option value="REQUERIMENTO">Requerimento</option>
+                    <option value="INDICACAO">Indicacao</option>
+                    <option value="EMENDA">Emenda</option>
+                  </select>
+                </label>
+                <label>Etapa
+                  <select name="etapa_kanban">
+                    <option value="REDACAO">Redacao</option>
+                    <option value="COMISSAO">Comissao</option>
+                    <option value="PLENARIO">Plenario</option>
+                    <option value="SANCAO_VETO">Sancao/Veto</option>
+                  </select>
+                </label>
+                <label>Tema<input name="tema" /></label>
+                <label>Justificativa tecnica<textarea name="justificativa_tecnica"></textarea></label>
+                <button type="submit">Salvar proposicao</button>
+                <p id="proposition-message" class="message"></p>
+              </form>
+            </section>
+
+            <section id="emendas" class="module">
+              <div class="section-title">
+                <div>
+                  <p class="eyebrow">Orcamento</p>
+                  <h2>Emendas e execucao na ponta</h2>
+                </div>
+              </div>
+              <div id="amendment-list" class="list"></div>
+              <form id="amendment-form" class="form-grid">
+                <h3>Nova emenda</h3>
+                <label>Titulo<input name="titulo" required /></label>
+                <label>Numero<input name="numero" required /></label>
+                <label>Area<input name="area" placeholder="Saude, infraestrutura, educacao" /></label>
+                <label>Beneficiario<input name="beneficiario" /></label>
+                <label>Valor indicado<input name="valor_indicado" type="number" min="0" step="0.01" required /></label>
+                <label>Situacao
+                  <select name="status_execucao">
+                    <option value="INDICACAO">Indicacao</option>
+                    <option value="EMPENHO">Empenho</option>
+                    <option value="LIQUIDACAO">Liquidacao</option>
+                    <option value="PAGAMENTO">Pagamento</option>
+                    <option value="ENTREGUE">Entregue</option>
+                  </select>
+                </label>
+                <label>Objeto<textarea name="objeto"></textarea></label>
+                <button type="submit">Salvar emenda</button>
+                <p id="amendment-message" class="message"></p>
+              </form>
+            </section>
+
+            <section id="oficios" class="module">
+              <div class="section-title">
+                <div>
+                  <p class="eyebrow">Central de oficios</p>
+                  <h2>Geracao, envio e acompanhamento</h2>
+                </div>
+              </div>
+              <div id="office-list" class="list"></div>
+              <form id="office-form" class="form-grid">
+                <h3>Novo oficio</h3>
+                <label>Demanda vinculada
+                  <select id="office-demand-select" name="demanda_id"></select>
+                </label>
+                <label>Titulo<input name="titulo" required /></label>
+                <label>Orgao destino<input name="orgao_destino" required /></label>
+                <label>Assunto<input name="assunto" required /></label>
+                <label>Situacao
+                  <select name="status">
+                    <option value="RASCUNHO">Rascunho</option>
+                    <option value="ENVIADO">Enviado</option>
+                    <option value="RESPONDIDO">Respondido</option>
+                    <option value="CONCLUIDO">Concluido</option>
+                  </select>
+                </label>
+                <label>Acompanhamento<textarea name="follow_up"></textarea></label>
+                <button type="submit">Gerar oficio</button>
+                <p id="office-message" class="message"></p>
+              </form>
+            </section>
+
+            <section id="cadastros" class="module">
+              <div class="section-title">
+                <div>
+                  <p class="eyebrow">Cadastros</p>
+                  <h2>Cidadaos, liderancas, orgaos e equipe</h2>
+                </div>
+              </div>
+              <div class="registry-note">
+                <strong>Fluxo correto:</strong>
+                <span>cada tipo de registro fica em uma subaba propria para reduzir erro e acelerar o atendimento.</span>
+              </div>
+              <div class="subtabs" aria-label="Tipos de cadastro">
+                <button type="button" data-cadastro-tab="pessoas" class="active">Cidadaos e liderancas</button>
+                <button type="button" data-cadastro-tab="orgaos">Orgaos publicos</button>
+                <button type="button" data-cadastro-tab="colaboradores">Colaboradores</button>
+                <button type="button" data-cadastro-tab="territorios">Territorios</button>
+              </div>
+
+              <section id="cadastro-pessoas" class="cadastro-pane active">
+                <h3>Cadastros ativos</h3>
+                <div id="contact-list" class="list"></div>
+                <form id="contact-form" class="form-grid">
+                  <h3>Novo cidadao ou lideranca</h3>
+                  <input name="tipo_contato" type="hidden" value="CIDADAO" />
+                  <label>Nome<input name="nome" required /></label>
+                  <label>Telefone<input name="telefone_principal" /></label>
+                  <label>E-mail<input name="email" type="email" /></label>
+                  <label>Bairro<input name="bairro" /></label>
+                  <label>Territorio
+                    <select id="contact-territory-select" name="territorio_id"></select>
+                  </label>
+                  <label>Nivel politico
+                    <select name="nivel_relacionamento">
+                      <option value="CONTATO">Contato</option>
+                      <option value="PARTICIPANTE">Participante</option>
+                      <option value="APOIADOR">Apoiador</option>
+                      <option value="LIDERANCA">Lideranca</option>
+                      <option value="VOTO_CERTO">Voto certo</option>
+                    </select>
+                  </label>
+                  <label>Engajamento
+                    <select name="engajamento">
+                      <option value="FRIO">Frio</option>
+                      <option value="MORNO">Morno</option>
+                      <option value="MEDIO">Medio</option>
+                      <option value="FORTE">Forte</option>
+                    </select>
+                  </label>
+                  <label>Influencia
+                    <select name="influencia">
+                      <option value="BAIXA">Baixa</option>
+                      <option value="MEDIA">Media</option>
+                      <option value="ALTA">Alta</option>
+                    </select>
+                  </label>
+                  <label>Voto 2028
+                    <select name="voto_2028">
+                      <option value="INDEFINIDO">Indefinido</option>
+                      <option value="PROVAVEL">Provavel</option>
+                      <option value="VOTO_CERTO">Voto certo</option>
+                      <option value="NAO_APOIA">Nao apoia</option>
+                    </select>
+                  </label>
+                  <label>Prioridade politica
+                    <select name="prioridade_politica">
+                      <option value="MEDIA">Media</option>
+                      <option value="ALTA">Alta</option>
+                      <option value="BAIXA">Baixa</option>
+                    </select>
+                  </label>
+                  <p class="form-note">Use classificacao politica apenas com base declarada, consentida ou validada pela coordenacao.</p>
+                  <button id="contact-submit" type="submit">Salvar cadastro</button>
+                  <p id="contact-message" class="message"></p>
+                </form>
+              </section>
+
+              <section id="cadastro-orgaos" class="cadastro-pane">
+                <h3>Orgaos publicos</h3>
+                <div id="public-body-list" class="list"></div>
+                <form id="public-body-form" class="form-grid">
+                  <h3>Novo orgao publico</h3>
+                  <label>Nome do orgao<input name="nome" required /></label>
+                  <label>Telefone<input name="telefone_principal" /></label>
+                  <label>E-mail<input name="email" type="email" /></label>
+                  <label>Bairro ou sede<input name="bairro" /></label>
+                  <label>Territorio
+                    <select id="public-body-territory-select" name="territorio_id"></select>
+                  </label>
+                  <label>Observacoes<textarea name="observacoes"></textarea></label>
+                  <button id="public-body-submit" type="submit">Salvar orgao</button>
+                  <p id="public-body-message" class="message"></p>
+                </form>
+              </section>
+
+              <section id="cadastro-colaboradores" class="cadastro-pane">
+                <h3>Colaboradores e responsaveis internos</h3>
+                <div id="user-list" class="list"></div>
+                <form id="user-form" class="form-grid">
+                  <h3>Novo colaborador</h3>
+                  <label>Nome<input name="nome" required /></label>
+                  <label>E-mail de acesso<input name="email_login" type="email" required /></label>
+                  <label>Telefone<input name="telefone" /></label>
+                  <label>Perfil
+                    <select name="perfil">
+                      <option value="COLABORADOR_EXTERNO">Colaborador externo</option>
+                      <option value="ASSESSOR_NIVEL_1">Assessor nivel 1</option>
+                      <option value="SUPERVISOR_EQUIPE">Supervisor de equipe</option>
+                      <option value="ASSESSOR_ADMINISTRATIVO">Assessor administrativo</option>
+                      <option value="ASSESSOR_JURIDICO">Assessor juridico</option>
+                    </select>
+                  </label>
+                  <button id="user-submit" type="submit">Salvar colaborador</button>
+                  <p id="user-message" class="message"></p>
+                </form>
+              </section>
+
+              <section id="cadastro-territorios" class="cadastro-pane">
+                <h3>Territorios cadastrados</h3>
+                <div id="territory-list" class="list"></div>
+              </section>
+            </section>
+
+            <section id="compliance" class="module">
+              <div class="section-title">
+                <div>
+                  <p class="eyebrow">Seguranca e LGPD</p>
+                  <h2>Auditoria, consentimento e acesso</h2>
+                </div>
+              </div>
+              <div id="compliance-metrics" class="metric-grid"></div>
+              <div class="split">
+                <section class="surface">
+                  <div class="section-head">
+                    <h3>Logs recentes</h3>
+                    <span>Auditoria operacional</span>
+                  </div>
+                  <div id="audit-list" class="list compact"></div>
+                </section>
+                <section class="surface">
+                  <div class="section-head">
+                    <h3>Controles ativos</h3>
+                    <span>Base minima de conformidade</span>
+                  </div>
+                  <ul class="control-list">
+                    <li>Niveis de acesso por perfil</li>
+                    <li>Registro de consentimento por canal</li>
+                    <li>Auditoria de criacao, edicao e login</li>
+                    <li>Upload com hash SHA-256</li>
+                  </ul>
+                </section>
+              </div>
+            </section>
+
+            <section id="mobile" class="module">
+              <div class="section-title">
+                <div>
+                  <p class="eyebrow">Campo</p>
+                  <h2>Aplicativo de campo</h2>
+                </div>
+                <a class="button-link" href="http://127.0.0.1:8012/mobile/" target="_blank" rel="noreferrer">Abrir aplicativo</a>
+              </div>
+              <div class="mobile-console">
+                <section class="mobile-brief">
+                  <img
+                    src="/imagens/Logo%20APP%20Mobile.jpg"
+                    alt="Logo do aplicativo mobile"
+                  />
+                  <div>
+                    <p class="eyebrow">Aplicativo de campo</p>
+                    <h3>Cadastro rapido com rascunho local</h3>
+                    <p>O colaborador registra contato, perfil politico, consentimento e observacao em etapas curtas.</p>
+                  </div>
+                </section>
+
+                <section class="sync-overview" aria-label="Resumo de sincronizacao">
+                  <article>
+                    <span>Enviados agora</span>
+                    <strong id="sync-count">0</strong>
+                  </article>
+                  <article>
+                    <span>Falhas</span>
+                    <strong id="sync-errors">0</strong>
+                  </article>
+                  <article>
+                    <span>Fila local</span>
+                    <strong id="sync-queue">0</strong>
+                  </article>
+                </section>
+
+                <form id="sync-form" class="field-sync-form">
+                  <h3>Simular cadastro recebido do aplicativo</h3>
+                  <label>Nome<input name="nome" value="Contato de Campo" required /></label>
+                  <label>Telefone<input name="telefone_principal" value="31988887777" /></label>
+                  <label>Bairro<input name="bairro" value="Centro" /></label>
+                  <button type="submit">Sincronizar cadastro</button>
+                </form>
+
+                <section class="surface">
+                  <div class="section-head">
+                    <h3>Ultimos envios</h3>
+                    <span>Sincronizacao idempotente</span>
+                  </div>
+                  <div id="sync-result" class="sync-list"></div>
+                </section>
+              </div>
+            </section>
+          </section>
+
+          <aside class="assistant-panel">
+            <p class="eyebrow">IA Assistiva</p>
+            <h2>Apoio operacional</h2>
+            <p id="selected-demand-label">Nenhuma demanda selecionada.</p>
+            <p id="ai-output">Selecione uma demanda da fila para gerar resumo ou proxima etapa. A IA nao altera a situacao automaticamente.</p>
+            <div class="assistant-actions">
+              <button id="ai-summarize" type="button">Resumir demanda</button>
+              <button id="ai-suggest" type="button" class="secondary">Sugerir proxima etapa</button>
+            </div>
+          </aside>
+        </main>
+      </div>
+    </div>
+    <script src="./app.js"></script>
+  </body>
+</html>

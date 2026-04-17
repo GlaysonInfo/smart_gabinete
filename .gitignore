@@ -1,0 +1,8 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+data/gabinete_ia.json
+data/smoke_gabinete_ia.json
+data/uploads/

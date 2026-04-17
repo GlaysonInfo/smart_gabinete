@@ -1,0 +1,3233 @@
+openapi: 3.0.3
+info:
+  title: GABINETE IA API
+  version: 1.1.0
+  description: >-
+    Contrato OpenAPI refinado do sistema GESTÃO DE MANDATOS / GABINETE IA.
+    Estruturado para codegen, implementação backend FastAPI e consumo por frontend web/mobile.
+servers:
+  - url: /api/v1
+    description: API versionada v1
+
+tags:
+  - name: Auth
+    description: Autenticação e contexto do usuário
+  - name: Administração
+    description: Usuários, equipes e auditoria
+  - name: Territórios
+    description: Estrutura territorial do gabinete
+  - name: Contatos
+    description: Cadastros de cidadãos e contatos institucionais
+  - name: Consentimentos
+    description: Consentimentos e canais de contato
+  - name: Demandas
+    description: Atendimento institucional e triagem
+  - name: Agenda
+    description: Agenda operacional e executiva
+  - name: Jurídico
+    description: Documentos jurídicos e versionamento
+  - name: Administrativo
+    description: Protocolos, tarefas e checklists
+  - name: Projetos
+    description: Projetos do mandato, etapas e riscos
+  - name: Territorial
+    description: Indicadores e eventos territoriais agregados
+  - name: Relatórios
+    description: Relatórios operacionais e executivos
+  - name: Uploads
+    description: Upload e metadados de arquivos
+  - name: Mobile Sync
+    description: Sincronização idempotente do aplicativo mobile
+  - name: IA Assistiva
+    description: Recursos assistivos de IA com revisão humana
+
+security:
+  - bearerAuth: []
+
+paths:
+  /auth/login:
+    post:
+      tags: [Auth]
+      operationId: authLogin
+      summary: Autenticar usuário
+      description: >-
+        Autentica o usuário e retorna access token, refresh token,
+        contexto do usuário e escopos aplicáveis.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+            examples:
+              default:
+                value:
+                  email_login: usuario@gabinete.com
+                  senha: Senha@123
+      responses:
+        '200':
+          description: Login efetuado com sucesso
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/XRequestId'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /auth/refresh:
+    post:
+      tags: [Auth]
+      operationId: authRefresh
+      summary: Renovar access token
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshTokenRequest'
+      responses:
+        '200':
+          description: Token renovado
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/XRequestId'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RefreshTokenResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /auth/logout:
+    post:
+      tags: [Auth]
+      operationId: authLogout
+      summary: Encerrar sessão
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LogoutRequest'
+      responses:
+        '204':
+          description: Logout efetuado
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /auth/me:
+    get:
+      tags: [Auth]
+      operationId: authMe
+      summary: Obter contexto do usuário autenticado
+      responses:
+        '200':
+          description: Contexto do usuário retornado com sucesso
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/XRequestId'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MeResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /usuarios:
+    get:
+      tags: [Administração]
+      operationId: listUsers
+      summary: Listar usuários
+      parameters:
+        - $ref: '#/components/parameters/Search'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - $ref: '#/components/parameters/SortBy'
+        - $ref: '#/components/parameters/SortOrder'
+        - name: perfil
+          in: query
+          schema:
+            $ref: '#/components/schemas/PerfilUsuario'
+        - name: equipe_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: ativo
+          in: query
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: Lista paginada de usuários
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/XRequestId'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserListResponse'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+    post:
+      tags: [Administração]
+      operationId: createUser
+      summary: Criar usuário
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserCreateRequest'
+      responses:
+        '201':
+          description: Usuário criado com sucesso
+          headers:
+            Location:
+              description: URL do recurso criado
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserSingleResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '409':
+          $ref: '#/components/responses/ConflictError'
+
+  /usuarios/{usuario_id}:
+    parameters:
+      - $ref: '#/components/parameters/UsuarioId'
+    get:
+      tags: [Administração]
+      operationId: getUserById
+      summary: Obter usuário por ID
+      responses:
+        '200':
+          description: Usuário encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserSingleResponse'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+    put:
+      tags: [Administração]
+      operationId: updateUser
+      summary: Atualizar usuário
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserUpdateRequest'
+      responses:
+        '200':
+          description: Usuário atualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserSingleResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '409':
+          $ref: '#/components/responses/ConflictError'
+
+  /usuarios/{usuario_id}/status:
+    parameters:
+      - $ref: '#/components/parameters/UsuarioId'
+    patch:
+      tags: [Administração]
+      operationId: patchUserStatus
+      summary: Alterar status do usuário
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserStatusPatchRequest'
+      responses:
+        '200':
+          description: Status atualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserStatusPatchResponse'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /usuarios/{usuario_id}/reset-senha:
+    parameters:
+      - $ref: '#/components/parameters/UsuarioId'
+    post:
+      tags: [Administração]
+      operationId: requestUserPasswordReset
+      summary: Solicitar redefinição de senha
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResetPasswordRequest'
+      responses:
+        '202':
+          description: Reset enfileirado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AsyncAcceptedResponse'
+
+  /equipes:
+    get:
+      tags: [Administração]
+      operationId: listTeams
+      summary: Listar equipes
+      parameters:
+        - $ref: '#/components/parameters/Search'
+        - name: ativo
+          in: query
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: Lista de equipes
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TeamListResponse'
+    post:
+      tags: [Administração]
+      operationId: createTeam
+      summary: Criar equipe
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TeamCreateRequest'
+      responses:
+        '201':
+          description: Equipe criada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TeamSingleResponse'
+
+  /equipes/{equipe_id}:
+    parameters:
+      - $ref: '#/components/parameters/EquipeId'
+    get:
+      tags: [Administração]
+      operationId: getTeamById
+      summary: Obter equipe por ID
+      responses:
+        '200':
+          description: Equipe encontrada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TeamSingleResponse'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+    put:
+      tags: [Administração]
+      operationId: updateTeam
+      summary: Atualizar equipe
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TeamUpdateRequest'
+      responses:
+        '200':
+          description: Equipe atualizada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TeamSingleResponse'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /auditoria:
+    get:
+      tags: [Administração]
+      operationId: listAuditEvents
+      summary: Listar eventos de auditoria
+      parameters:
+        - $ref: '#/components/parameters/DateFrom'
+        - $ref: '#/components/parameters/DateTo'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - name: usuario_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: entidade
+          in: query
+          schema:
+            type: string
+        - name: acao
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Lista paginada de auditoria
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuditListResponse'
+
+  /territorios/tree:
+    get:
+      tags: [Territórios]
+      operationId: getTerritoryTree
+      summary: Retornar árvore territorial
+      responses:
+        '200':
+          description: Árvore territorial
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TerritoryTreeResponse'
+
+  /territorios:
+    get:
+      tags: [Territórios]
+      operationId: listTerritories
+      summary: Listar territórios
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - name: tipo
+          in: query
+          schema:
+            $ref: '#/components/schemas/TipoTerritorio'
+        - name: parent_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: ativo
+          in: query
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: Lista paginada de territórios
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TerritoryListResponse'
+    post:
+      tags: [Territórios]
+      operationId: createTerritory
+      summary: Criar território
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TerritoryCreateRequest'
+      responses:
+        '201':
+          description: Território criado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TerritorySingleResponse'
+        '422':
+          $ref: '#/components/responses/BusinessRuleError'
+
+  /territorios/{territorio_id}:
+    parameters:
+      - $ref: '#/components/parameters/TerritorioId'
+    get:
+      tags: [Territórios]
+      operationId: getTerritoryById
+      summary: Obter território por ID
+      responses:
+        '200':
+          description: Território encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TerritorySingleResponse'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+    put:
+      tags: [Territórios]
+      operationId: updateTerritory
+      summary: Atualizar território
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TerritoryUpdateRequest'
+      responses:
+        '200':
+          description: Território atualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TerritorySingleResponse'
+        '422':
+          $ref: '#/components/responses/BusinessRuleError'
+
+  /territorios/{territorio_id}/status:
+    parameters:
+      - $ref: '#/components/parameters/TerritorioId'
+    patch:
+      tags: [Territórios]
+      operationId: patchTerritoryStatus
+      summary: Alterar status do território
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ActivePatchRequest'
+      responses:
+        '200':
+          description: Status atualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TerritorySingleResponse'
+
+  /contatos:
+    get:
+      tags: [Contatos]
+      operationId: listContacts
+      summary: Listar contatos
+      parameters:
+        - $ref: '#/components/parameters/Search'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - $ref: '#/components/parameters/SortBy'
+        - $ref: '#/components/parameters/SortOrder'
+        - name: territorio_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: status
+          in: query
+          schema:
+            $ref: '#/components/schemas/StatusContato'
+        - name: tipo_contato
+          in: query
+          schema:
+            type: string
+        - name: duplicidade_suspeita
+          in: query
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: Lista paginada de contatos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContactListResponse'
+    post:
+      tags: [Contatos]
+      operationId: createContact
+      summary: Criar contato
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ContactCreateRequest'
+      responses:
+        '201':
+          description: Contato criado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContactSingleResponse'
+        '409':
+          $ref: '#/components/responses/ConflictError'
+
+  /contatos/{contato_id}:
+    parameters:
+      - $ref: '#/components/parameters/ContatoId'
+    get:
+      tags: [Contatos]
+      operationId: getContactById
+      summary: Obter contato por ID
+      responses:
+        '200':
+          description: Contato encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContactDetailResponse'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+    put:
+      tags: [Contatos]
+      operationId: updateContact
+      summary: Atualizar contato
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ContactUpdateRequest'
+      responses:
+        '200':
+          description: Contato atualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContactDetailResponse'
+        '409':
+          $ref: '#/components/responses/ConflictError'
+
+  /contatos/{contato_id}/status:
+    parameters:
+      - $ref: '#/components/parameters/ContatoId'
+    patch:
+      tags: [Contatos]
+      operationId: patchContactStatus
+      summary: Alterar status do contato
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ContactStatusPatchRequest'
+      responses:
+        '200':
+          description: Status atualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContactSingleResponse'
+
+  /contatos/{contato_id}/consentimentos:
+    parameters:
+      - $ref: '#/components/parameters/ContatoId'
+    get:
+      tags: [Consentimentos]
+      operationId: listContactConsents
+      summary: Listar consentimentos do contato
+      responses:
+        '200':
+          description: Lista de consentimentos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConsentListResponse'
+    post:
+      tags: [Consentimentos]
+      operationId: createContactConsent
+      summary: Criar consentimento do contato
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConsentCreateRequest'
+      responses:
+        '201':
+          description: Consentimento criado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConsentSingleResponse'
+
+  /demandas:
+    get:
+      tags: [Demandas]
+      operationId: listDemands
+      summary: Listar demandas
+      parameters:
+        - $ref: '#/components/parameters/Search'
+        - $ref: '#/components/parameters/DateFrom'
+        - $ref: '#/components/parameters/DateTo'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - name: status
+          in: query
+          schema:
+            $ref: '#/components/schemas/StatusDemanda'
+        - name: prioridade
+          in: query
+          schema:
+            $ref: '#/components/schemas/PrioridadeDemanda'
+        - name: categoria_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: territorio_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: responsavel_usuario_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Lista paginada de demandas
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DemandListResponse'
+    post:
+      tags: [Demandas]
+      operationId: createDemand
+      summary: Criar demanda
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DemandCreateRequest'
+      responses:
+        '201':
+          description: Demanda criada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DemandSingleResponse'
+
+  /demandas/{demanda_id}:
+    parameters:
+      - $ref: '#/components/parameters/DemandaId'
+    get:
+      tags: [Demandas]
+      operationId: getDemandById
+      summary: Obter demanda por ID
+      responses:
+        '200':
+          description: Demanda encontrada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DemandDetailResponse'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+    put:
+      tags: [Demandas]
+      operationId: updateDemand
+      summary: Atualizar demanda
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DemandUpdateRequest'
+      responses:
+        '200':
+          description: Demanda atualizada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DemandDetailResponse'
+        '422':
+          $ref: '#/components/responses/BusinessRuleError'
+
+  /demandas/{demanda_id}/assumir:
+    parameters:
+      - $ref: '#/components/parameters/DemandaId'
+    post:
+      tags: [Demandas]
+      operationId: takeDemandOwnership
+      summary: Assumir demanda
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Demanda assumida
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DemandSingleResponse'
+
+  /demandas/{demanda_id}/atribuir:
+    parameters:
+      - $ref: '#/components/parameters/DemandaId'
+    post:
+      tags: [Demandas]
+      operationId: assignDemand
+      summary: Atribuir demanda a responsável
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DemandAssignRequest'
+      responses:
+        '200':
+          description: Demanda atribuída
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DemandSingleResponse'
+
+  /demandas/{demanda_id}/repriorizar:
+    parameters:
+      - $ref: '#/components/parameters/DemandaId'
+    post:
+      tags: [Demandas]
+      operationId: reprioritizeDemand
+      summary: Repriorizar demanda
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DemandReprioritizeRequest'
+      responses:
+        '200':
+          description: Demanda repriorizada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DemandSingleResponse'
+
+  /demandas/{demanda_id}/encaminhar:
+    parameters:
+      - $ref: '#/components/parameters/DemandaId'
+    post:
+      tags: [Demandas]
+      operationId: forwardDemand
+      summary: Encaminhar demanda
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ForwardRequest'
+      responses:
+        '201':
+          description: Encaminhamento criado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ForwardSingleResponse'
+
+  /demandas/{demanda_id}/concluir:
+    parameters:
+      - $ref: '#/components/parameters/DemandaId'
+    post:
+      tags: [Demandas]
+      operationId: concludeDemand
+      summary: Concluir demanda
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConcludeDemandRequest'
+      responses:
+        '200':
+          description: Demanda concluída
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DemandSingleResponse'
+
+  /demandas/{demanda_id}/reabrir:
+    parameters:
+      - $ref: '#/components/parameters/DemandaId'
+    post:
+      tags: [Demandas]
+      operationId: reopenDemand
+      summary: Reabrir demanda
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReopenDemandRequest'
+      responses:
+        '200':
+          description: Demanda reaberta
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DemandSingleResponse'
+        '422':
+          $ref: '#/components/responses/BusinessRuleError'
+
+  /demandas/{demanda_id}/historico:
+    parameters:
+      - $ref: '#/components/parameters/DemandaId'
+    get:
+      tags: [Demandas]
+      operationId: listDemandHistory
+      summary: Listar histórico da demanda
+      responses:
+        '200':
+          description: Histórico da demanda
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DemandHistoryListResponse'
+
+  /agenda:
+    get:
+      tags: [Agenda]
+      operationId: listAgendaEvents
+      summary: Listar eventos de agenda
+      parameters:
+        - $ref: '#/components/parameters/DateFrom'
+        - $ref: '#/components/parameters/DateTo'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - name: tipo_agenda_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: status
+          in: query
+          schema:
+            $ref: '#/components/schemas/StatusAgenda'
+        - name: territorio_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: responsavel_usuario_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: eh_agenda_vereador
+          in: query
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: Lista paginada de eventos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgendaEventListResponse'
+
+  /agenda-eventos:
+    post:
+      tags: [Agenda]
+      operationId: createAgendaEvent
+      summary: Criar evento de agenda
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgendaEventCreateRequest'
+      responses:
+        '201':
+          description: Evento criado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgendaEventSingleResponse'
+
+  /agenda-eventos/{evento_id}:
+    parameters:
+      - $ref: '#/components/parameters/EventoId'
+    get:
+      tags: [Agenda]
+      operationId: getAgendaEventById
+      summary: Obter evento de agenda por ID
+      responses:
+        '200':
+          description: Evento encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgendaEventDetailResponse'
+    put:
+      tags: [Agenda]
+      operationId: updateAgendaEvent
+      summary: Atualizar evento de agenda
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgendaEventUpdateRequest'
+      responses:
+        '200':
+          description: Evento atualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgendaEventSingleResponse'
+
+  /agenda-eventos/{evento_id}/status:
+    parameters:
+      - $ref: '#/components/parameters/EventoId'
+    patch:
+      tags: [Agenda]
+      operationId: patchAgendaEventStatus
+      summary: Alterar status do evento
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgendaStatusPatchRequest'
+      responses:
+        '200':
+          description: Status atualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgendaEventSingleResponse'
+
+  /agenda-eventos/{evento_id}/notificar:
+    parameters:
+      - $ref: '#/components/parameters/EventoId'
+    post:
+      tags: [Agenda]
+      operationId: notifyAgendaEventParticipants
+      summary: Enfileirar notificações do evento
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgendaNotifyRequest'
+      responses:
+        '202':
+          description: Notificações enfileiradas
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AsyncAcceptedResponse'
+
+  /documentos-juridicos:
+    get:
+      tags: [Jurídico]
+      operationId: listLegalDocuments
+      summary: Listar documentos jurídicos
+      parameters:
+        - $ref: '#/components/parameters/DateFrom'
+        - $ref: '#/components/parameters/DateTo'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - name: tipo
+          in: query
+          schema:
+            $ref: '#/components/schemas/TipoDocumento'
+        - name: status
+          in: query
+          schema:
+            $ref: '#/components/schemas/StatusDocumento'
+      responses:
+        '200':
+          description: Lista paginada de documentos jurídicos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LegalDocumentListResponse'
+
+  /pareceres:
+    post:
+      tags: [Jurídico]
+      operationId: createLegalOpinion
+      summary: Criar parecer jurídico
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ParecerCreateRequest'
+      responses:
+        '201':
+          description: Parecer criado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LegalDocumentSingleResponse'
+
+  /pareceres/{documento_id}:
+    parameters:
+      - $ref: '#/components/parameters/DocumentoId'
+    get:
+      tags: [Jurídico]
+      operationId: getLegalOpinionById
+      summary: Obter parecer por ID
+      responses:
+        '200':
+          description: Parecer encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LegalDocumentDetailResponse'
+    put:
+      tags: [Jurídico]
+      operationId: updateLegalOpinion
+      summary: Atualizar parecer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ParecerUpdateRequest'
+      responses:
+        '200':
+          description: Parecer atualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LegalDocumentDetailResponse'
+
+  /protocolos:
+    get:
+      tags: [Administrativo]
+      operationId: listProtocols
+      summary: Listar protocolos
+      parameters:
+        - $ref: '#/components/parameters/DateFrom'
+        - $ref: '#/components/parameters/DateTo'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - name: status
+          in: query
+          schema:
+            $ref: '#/components/schemas/StatusProtocolo'
+      responses:
+        '200':
+          description: Lista paginada de protocolos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProtocolListResponse'
+    post:
+      tags: [Administrativo]
+      operationId: createProtocol
+      summary: Criar protocolo
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProtocolCreateRequest'
+      responses:
+        '201':
+          description: Protocolo criado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProtocolSingleResponse'
+
+  /protocolos/{protocolo_id}:
+    parameters:
+      - $ref: '#/components/parameters/ProtocoloId'
+    get:
+      tags: [Administrativo]
+      operationId: getProtocolById
+      summary: Obter protocolo por ID
+      responses:
+        '200':
+          description: Protocolo encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProtocolDetailResponse'
+    put:
+      tags: [Administrativo]
+      operationId: updateProtocol
+      summary: Atualizar protocolo
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProtocolUpdateRequest'
+      responses:
+        '200':
+          description: Protocolo atualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProtocolSingleResponse'
+
+  /tarefas:
+    get:
+      tags: [Administrativo]
+      operationId: listTasks
+      summary: Listar tarefas
+      parameters:
+        - $ref: '#/components/parameters/DateFrom'
+        - $ref: '#/components/parameters/DateTo'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - name: status
+          in: query
+          schema:
+            $ref: '#/components/schemas/StatusTarefa'
+        - name: responsavel_usuario_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Lista paginada de tarefas
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskListResponse'
+    post:
+      tags: [Administrativo]
+      operationId: createTask
+      summary: Criar tarefa
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskCreateRequest'
+      responses:
+        '201':
+          description: Tarefa criada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskSingleResponse'
+
+  /projetos:
+    get:
+      tags: [Projetos]
+      operationId: listProjects
+      summary: Listar projetos
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - name: status
+          in: query
+          schema:
+            $ref: '#/components/schemas/StatusProjeto'
+        - name: prioritario
+          in: query
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: Lista paginada de projetos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectListResponse'
+    post:
+      tags: [Projetos]
+      operationId: createProject
+      summary: Criar projeto
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProjectCreateRequest'
+      responses:
+        '201':
+          description: Projeto criado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectSingleResponse'
+
+  /projetos/{projeto_id}:
+    parameters:
+      - $ref: '#/components/parameters/ProjetoId'
+    get:
+      tags: [Projetos]
+      operationId: getProjectById
+      summary: Obter projeto por ID
+      responses:
+        '200':
+          description: Projeto encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectDetailResponse'
+    put:
+      tags: [Projetos]
+      operationId: updateProject
+      summary: Atualizar projeto
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProjectUpdateRequest'
+      responses:
+        '200':
+          description: Projeto atualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectSingleResponse'
+
+  /territorial/dashboard:
+    get:
+      tags: [Territorial]
+      operationId: getTerritorialDashboard
+      summary: Obter dashboard territorial agregado
+      parameters:
+        - $ref: '#/components/parameters/DateFrom'
+        - $ref: '#/components/parameters/DateTo'
+        - name: regiao_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: bairro_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: microarea_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: tema
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Dashboard territorial agregado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TerritorialDashboardResponse'
+
+  /relatorios/catalogo:
+    get:
+      tags: [Relatórios]
+      operationId: listAvailableReports
+      summary: Listar catálogo de relatórios disponíveis
+      responses:
+        '200':
+          description: Catálogo de relatórios
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReportCatalogResponse'
+
+  /uploads:
+    post:
+      tags: [Uploads]
+      operationId: uploadFile
+      summary: Realizar upload de arquivo
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                contexto:
+                  type: string
+      responses:
+        '201':
+          description: Upload realizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UploadSingleResponse'
+
+  /mobile/sync:
+    post:
+      tags: [Mobile Sync]
+      operationId: syncMobileBatch
+      summary: Sincronizar lote do aplicativo mobile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MobileSyncRequest'
+      responses:
+        '200':
+          description: Lote processado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MobileSyncResponse'
+        '409':
+          $ref: '#/components/responses/ConflictError'
+
+  /ai/resumir-contexto:
+    post:
+      tags: [IA Assistiva]
+      operationId: summarizeContext
+      summary: Resumir contexto de entidade
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AIContextRequest'
+      responses:
+        '200':
+          description: Resumo gerado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AIContextSummaryResponse'
+
+  /ai/sugerir-proxima-etapa:
+    post:
+      tags: [IA Assistiva]
+      operationId: suggestNextStep
+      summary: Sugerir próxima etapa operacional
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AIContextRequest'
+      responses:
+        '200':
+          description: Sugestão gerada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AINextStepResponse'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  headers:
+    XRequestId:
+      description: Identificador único da requisição
+      schema:
+        type: string
+        format: uuid
+
+  parameters:
+    Search:
+      name: search
+      in: query
+      schema:
+        type: string
+      description: Busca textual simples
+    Page:
+      name: page
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+    PageSize:
+      name: page_size
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+    SortBy:
+      name: sort_by
+      in: query
+      schema:
+        type: string
+        default: created_at
+    SortOrder:
+      name: sort_order
+      in: query
+      schema:
+        type: string
+        enum: [asc, desc]
+        default: desc
+    DateFrom:
+      name: date_from
+      in: query
+      schema:
+        type: string
+        format: date-time
+    DateTo:
+      name: date_to
+      in: query
+      schema:
+        type: string
+        format: date-time
+    UsuarioId:
+      name: usuario_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    EquipeId:
+      name: equipe_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    TerritorioId:
+      name: territorio_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    ContatoId:
+      name: contato_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    DemandaId:
+      name: demanda_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    EventoId:
+      name: evento_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    DocumentoId:
+      name: documento_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    ProtocoloId:
+      name: protocolo_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    TarefaId:
+      name: tarefa_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    ChecklistId:
+      name: checklist_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    ProjetoId:
+      name: projeto_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    EtapaId:
+      name: etapa_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    OrganizacaoId:
+      name: organizacao_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    LiderancaId:
+      name: lideranca_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    VisitaId:
+      name: visita_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+  responses:
+    UnauthorizedError:
+      description: Não autenticado
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error:
+              code: UNAUTHORIZED
+              message: Token ausente ou inválido.
+            meta:
+              request_id: 00000000-0000-0000-0000-000000000000
+              timestamp: '2026-04-16T10:00:00Z'
+    ForbiddenError:
+      description: Sem permissão
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    NotFoundError:
+      description: Recurso não encontrado
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    ValidationError:
+      description: Erro de validação
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    ConflictError:
+      description: Conflito de recurso ou duplicidade
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    BusinessRuleError:
+      description: Regra de negócio violada
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+  schemas:
+    PerfilUsuario:
+      type: string
+      enum: [COLABORADOR_EXTERNO, SUPERVISOR_EQUIPE, ASSESSOR_NIVEL_1, ASSESSOR_JURIDICO, ASSESSOR_ADMINISTRATIVO, CHEFE_GABINETE, VEREADOR]
+    StatusContato:
+      type: string
+      enum: [ATIVO, INATIVO, PENDENTE_VALIDACAO, DUPLICIDADE_SUSPEITA]
+    StatusDemanda:
+      type: string
+      enum: [ABERTA, EM_TRIAGEM, EM_ATENDIMENTO, ENCAMINHADA, AGUARDANDO_RETORNO, CONCLUIDA, SUSPENSA, CANCELADA, REABERTA]
+    PrioridadeDemanda:
+      type: string
+      enum: [BAIXA, MEDIA, ALTA, CRITICA]
+    StatusVisita:
+      type: string
+      enum: [PLANEJADA, REALIZADA, NAO_REALIZADA, REAGENDADA, CANCELADA]
+    StatusAgenda:
+      type: string
+      enum: [PLANEJADO, CONFIRMADO, EM_ANDAMENTO, REALIZADO, CANCELADO, REAGENDADO]
+    StatusTarefa:
+      type: string
+      enum: [ABERTA, EM_EXECUCAO, BLOQUEADA, CONCLUIDA, CANCELADA]
+    StatusDocumento:
+      type: string
+      enum: [RASCUNHO, EM_ELABORACAO, EM_REVISAO, APROVADO, PROTOCOLADO, ARQUIVADO, CANCELADO]
+    TipoDocumento:
+      type: string
+      enum: [PARECER, REQUERIMENTO, OFICIO, MINUTA, ANEXO_OPERACIONAL, OUTRO]
+    StatusProtocolo:
+      type: string
+      enum: [REGISTRADO, EM_TRAMITACAO, PENDENTE, CONCLUIDO, ARQUIVADO]
+    StatusProjeto:
+      type: string
+      enum: [PLANEJADO, EM_ANDAMENTO, PAUSADO, CONCLUIDO, CANCELADO]
+    NivelRisco:
+      type: string
+      enum: [BAIXO, MEDIO, ALTO, CRITICO]
+    TipoTerritorio:
+      type: string
+      enum: [REGIAO, BAIRRO, MICROAREA]
+    OrigemCadastro:
+      type: string
+      enum: [MOBILE_CAMPO, WEB_INTERNO, IMPORTACAO, INTEGRACAO]
+    CanalContato:
+      type: string
+      enum: [TELEFONE, WHATSAPP, EMAIL, OUTRO]
+    TipoEncaminhamento:
+      type: string
+      enum: [INTERNO, JURIDICO, ADMINISTRATIVO, EXTERNO]
+
+    Meta:
+      type: object
+      required: [request_id, timestamp]
+      properties:
+        request_id:
+          type: string
+          format: uuid
+        timestamp:
+          type: string
+          format: date-time
+
+    PaginationMeta:
+      allOf:
+        - $ref: '#/components/schemas/Meta'
+        - type: object
+          required: [page, page_size, total, total_pages]
+          properties:
+            page:
+              type: integer
+            page_size:
+              type: integer
+            total:
+              type: integer
+            total_pages:
+              type: integer
+
+    ErrorDetail:
+      type: object
+      properties:
+        field:
+          type: string
+        message:
+          type: string
+
+    ErrorObject:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        details:
+          type: array
+          items:
+            $ref: '#/components/schemas/ErrorDetail'
+
+    ErrorResponse:
+      type: object
+      required: [error, meta]
+      properties:
+        error:
+          $ref: '#/components/schemas/ErrorObject'
+        meta:
+          $ref: '#/components/schemas/Meta'
+
+    ScopeInput:
+      type: object
+      required: [escopo_tipo]
+      properties:
+        escopo_tipo:
+          type: string
+        territorio_id:
+          type: string
+          format: uuid
+          nullable: true
+        equipe_id:
+          type: string
+          format: uuid
+          nullable: true
+        escopo_valor:
+          type: string
+          nullable: true
+
+    ScopeOutput:
+      allOf:
+        - $ref: '#/components/schemas/ScopeInput'
+        - type: object
+          properties:
+            id:
+              type: string
+              format: uuid
+
+    LoginRequest:
+      type: object
+      required: [email_login, senha]
+      properties:
+        email_login:
+          type: string
+          format: email
+        senha:
+          type: string
+          format: password
+
+    RefreshTokenRequest:
+      type: object
+      required: [refresh_token]
+      properties:
+        refresh_token:
+          type: string
+
+    LogoutRequest:
+      type: object
+      required: [refresh_token]
+      properties:
+        refresh_token:
+          type: string
+
+    TokenBundle:
+      type: object
+      required: [access_token, refresh_token, token_type, expires_in]
+      properties:
+        access_token:
+          type: string
+        refresh_token:
+          type: string
+        token_type:
+          type: string
+          example: bearer
+        expires_in:
+          type: integer
+
+    UserSummary:
+      type: object
+      required: [id, nome, perfil, gabinete_id]
+      properties:
+        id:
+          type: string
+          format: uuid
+        nome:
+          type: string
+        perfil:
+          $ref: '#/components/schemas/PerfilUsuario'
+        gabinete_id:
+          type: string
+          format: uuid
+        equipe_id:
+          type: string
+          format: uuid
+          nullable: true
+        ativo:
+          type: boolean
+        escopos:
+          type: array
+          items:
+            $ref: '#/components/schemas/ScopeOutput'
+
+    LoginResponse:
+      type: object
+      properties:
+        data:
+          allOf:
+            - $ref: '#/components/schemas/TokenBundle'
+            - type: object
+              properties:
+                user:
+                  $ref: '#/components/schemas/UserSummary'
+        meta:
+          $ref: '#/components/schemas/Meta'
+
+    RefreshTokenResponse:
+      type: object
+      properties:
+        data:
+          $ref: '#/components/schemas/TokenBundle'
+        meta:
+          $ref: '#/components/schemas/Meta'
+
+    MeResponse:
+      type: object
+      properties:
+        data:
+          $ref: '#/components/schemas/UserSummary'
+        meta:
+          $ref: '#/components/schemas/Meta'
+
+    UserBase:
+      type: object
+      properties:
+        nome:
+          type: string
+        email_login:
+          type: string
+          format: email
+        telefone:
+          type: string
+          nullable: true
+        perfil:
+          $ref: '#/components/schemas/PerfilUsuario'
+        equipe_id:
+          type: string
+          format: uuid
+          nullable: true
+        ativo:
+          type: boolean
+
+    UserCreateRequest:
+      allOf:
+        - $ref: '#/components/schemas/UserBase'
+        - type: object
+          required: [nome, email_login, perfil]
+          properties:
+            escopos:
+              type: array
+              items:
+                $ref: '#/components/schemas/ScopeInput'
+
+    UserUpdateRequest:
+      allOf:
+        - $ref: '#/components/schemas/UserBase'
+        - type: object
+          properties:
+            escopos:
+              type: array
+              items:
+                $ref: '#/components/schemas/ScopeInput'
+
+    UserItem:
+      allOf:
+        - $ref: '#/components/schemas/UserBase'
+        - type: object
+          properties:
+            id:
+              type: string
+              format: uuid
+            ultimo_login:
+              type: string
+              format: date-time
+              nullable: true
+            escopos:
+              type: array
+              items:
+                $ref: '#/components/schemas/ScopeOutput'
+
+    UserSingleResponse:
+      type: object
+      properties:
+        data:
+          $ref: '#/components/schemas/UserItem'
+        meta:
+          $ref: '#/components/schemas/Meta'
+
+    UserListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserItem'
+        meta:
+          $ref: '#/components/schemas/PaginationMeta'
+
+    UserStatusPatchRequest:
+      type: object
+      required: [ativo]
+      properties:
+        ativo:
+          type: boolean
+
+    UserStatusPatchResponse:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            id:
+              type: string
+              format: uuid
+            ativo:
+              type: boolean
+        meta:
+          $ref: '#/components/schemas/Meta'
+
+    ResetPasswordRequest:
+      type: object
+      properties:
+        motivo:
+          type: string
+          nullable: true
+
+    AsyncAcceptedResponse:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            status:
+              type: string
+            job_id:
+              type: string
+              format: uuid
+              nullable: true
+        meta:
+          $ref: '#/components/schemas/Meta'
+
+    TeamBase:
+      type: object
+      properties:
+        nome:
+          type: string
+        descricao:
+          type: string
+          nullable: true
+        supervisor_usuario_id:
+          type: string
+          format: uuid
+          nullable: true
+        ativo:
+          type: boolean
+
+    TeamCreateRequest:
+      allOf:
+        - $ref: '#/components/schemas/TeamBase'
+        - type: object
+          required: [nome]
+
+    TeamUpdateRequest:
+      $ref: '#/components/schemas/TeamCreateRequest'
+
+    TeamItem:
+      allOf:
+        - $ref: '#/components/schemas/TeamBase'
+        - type: object
+          properties:
+            id:
+              type: string
+              format: uuid
+
+    TeamSingleResponse:
+      type: object
+      properties:
+        data:
+          $ref: '#/components/schemas/TeamItem'
+        meta:
+          $ref: '#/components/schemas/Meta'
+
+    TeamListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/TeamItem'
+        meta:
+          $ref: '#/components/schemas/Meta'
+
+    AuditItem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        usuario_id:
+          type: string
+          format: uuid
+          nullable: true
+        entidade:
+          type: string
+        entidade_id:
+          type: string
+          format: uuid
+          nullable: true
+        acao:
+          type: string
+        payload_anterior:
+          type: object
+          nullable: true
+          additionalProperties: true
+        payload_novo:
+          type: object
+          nullable: true
+          additionalProperties: true
+        created_at:
+          type: string
+          format: date-time
+
+    AuditListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/AuditItem'
+        meta:
+          $ref: '#/components/schemas/PaginationMeta'
+
+    TerritoryBase:
+      type: object
+      properties:
+        parent_id:
+          type: string
+          format: uuid
+          nullable: true
+        nome:
+          type: string
+        tipo:
+          $ref: '#/components/schemas/TipoTerritorio'
+        codigo_externo:
+          type: string
+          nullable: true
+        ativo:
+          type: boolean
+
+    TerritoryCreateRequest:
+      allOf:
+        - $ref: '#/components/schemas/TerritoryBase'
+        - type: object
+          required: [nome, tipo]
+
+    TerritoryUpdateRequest:
+      $ref: '#/components/schemas/TerritoryCreateRequest'
+
+    TerritoryItem:
+      allOf:
+        - $ref: '#/components/schemas/TerritoryBase'
+        - type: object
+          properties:
+            id:
+              type: string
+              format: uuid
+
+    TerritoryNode:
+      allOf:
+        - $ref: '#/components/schemas/TerritoryItem'
+        - type: object
+          properties:
+            children:
+              type: array
+              items:
+                $ref: '#/components/schemas/TerritoryNode'
+
+    TerritorySingleResponse:
+      type: object
+      properties:
+        data:
+          $ref: '#/components/schemas/TerritoryItem'
+        meta:
+          $ref: '#/components/schemas/Meta'
+
+    TerritoryListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/TerritoryItem'
+        meta:
+          $ref: '#/components/schemas/PaginationMeta'
+
+    TerritoryTreeResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/TerritoryNode'
+        meta:
+          $ref: '#/components/schemas/Meta'
+
+    ActivePatchRequest:
+      type: object
+      required: [ativo]
+      properties:
+        ativo:
+          type: boolean
+
+    ContactBase:
+      type: object
+      properties:
+        territorio_id:
+          type: string
+          format: uuid
+          nullable: true
+        origem_cadastro:
+          $ref: '#/components/schemas/OrigemCadastro'
+        nome:
+          type: string
+        cpf:
+          type: string
+          nullable: true
+        data_nascimento:
+          type: string
+          format: date
+          nullable: true
+        telefone_principal:
+          type: string
+          nullable: true
+        telefone_secundario:
+          type: string
+          nullable: true
+        email:
+          type: string
+          format: email
+          nullable: true
+        logradouro:
+          type: string
+          nullable: true
+        numero:
+          type: string
+          nullable: true
+        complemento:
+          type: string
+          nullable: true
+        bairro:
+          type: string
+          nullable: true
+        cidade:
+          type: string
+          nullable: true
+        cep:
+          type: string
+          nullable: true
+        tipo_contato:
+          type: string
+        observacoes:
+          type: string
+          nullable: true
+
+    ContactCreateRequest:
+      allOf:
+        - $ref: '#/components/schemas/ContactBase'
+        - type: object
+          required: [origem_cadastro, nome]
+
+    ContactUpdateRequest:
+      $ref: '#/components/schemas/ContactCreateRequest'
+
+    ContactItem:
+      allOf:
+        - $ref: '#/components/schemas/ContactBase'
+        - type: object
+          properties:
+            id:
+              type: string
+              format: uuid
+            status:
+              $ref: '#/components/schemas/StatusContato'
+            duplicidade_suspeita:
+              type: boolean
+            territorio_nome:
+              type: string
+              nullable: true
+            created_at:
+              type: string
+              format: date-time
+
+    ConsentCreateRequest:
+      type: object
+      required: [canal, consentido, finalidade]
+      properties:
+        canal:
+          $ref: '#/components/schemas/CanalContato'
+        consentido:
+          type: boolean
+        finalidade:
+          type: string
+        forma_registro:
+          type: string
+          nullable: true
+        observacao:
+          type: string
+          nullable: true
+
+    ConsentItem:
+      allOf:
+        - $ref: '#/components/schemas/ConsentCreateRequest'
+        - type: object
+          properties:
+            id:
+              type: string
+              format: uuid
+            registrado_em:
+              type: string
+              format: date-time
+
+    ConsentSingleResponse:
+      type: object
+      properties:
+        data:
+          $ref: '#/components/schemas/ConsentItem'
+        meta:
+          $ref: '#/components/schemas/Meta'
+
+    ConsentListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/ConsentItem'
+        meta:
+          $ref: '#/components/schemas/Meta'
+
+    ContactSummary:
+      type: object
+      properties:
+        total_demandas:
+          type: integer
+        total_agendas:
+          type: integer
+        total_documentos:
+          type: integer
+
+    ContactDetail:
+      allOf:
+        - $ref: '#/components/schemas/ContactItem'
+        - type: object
+          properties:
+            consentimentos:
+              type: array
+              items:
+                $ref: '#/components/schemas/ConsentItem'
+            tags:
+              type: array
+              items:
+                type: string
+            resumo:
+              $ref: '#/components/schemas/ContactSummary'
+
+    ContactSingleResponse:
+      type: object
+      properties:
+        data:
+          $ref: '#/components/schemas/ContactItem'
+        meta:
+          $ref: '#/components/schemas/Meta'
+
+    ContactDetailResponse:
+      type: object
+      properties:
+        data:
+          $ref: '#/components/schemas/ContactDetail'
+        meta:
+          $ref: '#/components/schemas/Meta'
+
+    ContactListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/ContactItem'
+        meta:
+          $ref: '#/components/schemas/PaginationMeta'
+
+    ContactStatusPatchRequest:
+      type: object
+      required: [status]
+      properties:
+        status:
+          $ref: '#/components/schemas/StatusContato'
+
+    DemandBase:
+      type: object
+      properties:
+        cidadao_id:
+          type: string
+          format: uuid
+          nullable: true
+        territorio_id:
+          type: string
+          format: uuid
+          nullable: true
+        categoria_id:
+          type: string
+          format: uuid
+          nullable: true
+        titulo:
+          type: string
+        descricao:
+          type: string
+        prioridade:
+          $ref: '#/components/schemas/PrioridadeDemanda'
+        origem_cadastro:
+          $ref: '#/components/schemas/OrigemCadastro'
+
+    DemandCreateRequest:
+      allOf:
+        - $ref: '#/components/schemas/DemandBase'
+        - type: object
+          required: [titulo, descricao, prioridade, origem_cadastro]
+
+    DemandUpdateRequest:
+      allOf:
+        - $ref: '#/components/schemas/DemandBase'
+        - type: object
+          properties:
+            status:
+              $ref: '#/components/schemas/StatusDemanda'
+            responsavel_usuario_id:
+              type: string
+              format: uuid
+              nullable: true
+            sla_data:
+              type: string
+              format: date-time
+              nullable: true
+
+    UploadItem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        nome_original:
+          type: string
+        mime_type:
+          type: string
+        tamanho_bytes:
+          type: integer
+        url_storage:
+          type: string
+
+    DemandItem:
+      allOf:
+        - $ref: '#/components/schemas/DemandBase'
+        - type: object
+          properties:
+            id:
+              type: string
+              format: uuid
+            status:
+              $ref: '#/components/schemas/StatusDemanda'
+            responsavel_usuario_id:
+              type: string
+              format: uuid
+              nullable: true
+            responsavel_nome:
+              type: string
+              nullable: true
+            categoria_nome:
+              type: string
+              nullable: true
+            territorio_nome:
+              type: string
+              nullable: true
+            cidadao_nome:
+              type: string
+              nullable: true
+            sla_data:
+              type: string
+              format: date-time
+              nullable: true
+            criticidade_derivada:
+              type: string
+              nullable: true
+            data_abertura:
+              type: string
+              format: date-time
+
+    DemandDetail:
+      allOf:
+        - $ref: '#/components/schemas/DemandItem'
+        - type: object
+          properties:
+            data_conclusao:
+              type: string
+              format: date-time
+              nullable: true
+            tags:
+              type: array
+              items:
+                type: string
+            anexos:
+              type: array
+              items:
+                $ref: '#/components/schemas/UploadItem'
+
+    DemandSingleResponse:
+      type: object
+      properties:
+        data:
+          $ref: '#/components/schemas/DemandItem'
+        meta:
+          $ref: '#/components/schemas/Meta'
+
+    DemandDetailResponse:
+      type: object
+      properties:
+        data:
+          $ref: '#/components/schemas/DemandDetail'
+        meta:
+          $ref: '#/components/schemas/Meta'
+
+    DemandListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/DemandItem'
+        meta:
+          $ref: '#/components/schemas/PaginationMeta'
+
+    DemandAssignRequest:
+      type: object
+      required: [responsavel_usuario_id]
+      properties:
+        responsavel_usuario_id:
+          type: string
+          format: uuid
+        observacao:
+          type: string
+          nullable: true
+
+    DemandReprioritizeRequest:
+      type: object
+      required: [prioridade, motivo]
+      properties:
+        prioridade:
+          $ref: '#/components/schemas/PrioridadeDemanda'
+        motivo:
+          type: string
+
+    ForwardRequest:
+      type: object
+      required: [tipo, descricao]
+      properties:
+        tipo:
+          $ref: '#/components/schemas/TipoEncaminhamento'
+        destino_usuario_id:
+          type: string
+          format: uuid
+          nullable: true
+        destino_texto:
+          type: string
+          nullable: true
+        descricao:
+          type: string
+
+    ForwardItem:
+      allOf:
+        - $ref: '#/components/schemas/ForwardRequest'
+        - type: object
+          properties:
+            id:
+              type: string
+              format: uuid
+            demanda_id:
+              type: string
+              format: uuid
+            status:
+              type: string
+
+    ForwardSingleResponse:
+      type: object
+      properties:
+        data:
+          $ref: '#/components/schemas/ForwardItem'
+        meta:
+          $ref: '#/components/schemas/Meta'
+
+    ConcludeDemandRequest:
+      type: object
+      required: [observacao]
+      properties:
+        observacao:
+          type: string
+
+    ReopenDemandRequest:
+      type: object
+      required: [motivo_reabertura]
+      properties:
+        motivo_reabertura:
+          type: string
+
+    DemandHistoryItem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        acao:
+          type: string
+        status_anterior:
+          $ref: '#/components/schemas/StatusDemanda'
+        status_novo:
+          $ref: '#/components/schemas/StatusDemanda'
+        observacao:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        usuario:
+          type: object
+          properties:
+            id:
+              type: string
+              format: uuid
+            nome:
+              type: string
+
+    DemandHistoryListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/DemandHistoryItem'
+        meta:
+          $ref: '#/components/schemas/Meta'
+
+    AgendaParticipantInput:
+      type: object
+      properties:
+        usuario_id:
+          type: string
+          format: uuid
+          nullable: true
+        cidadao_id:
+          type: string
+          format: uuid
+          nullable: true
+        nome_externo:
+          type: string
+          nullable: true
+        tipo_participante:
+          type: string
+
+    AgendaBase:
+      type: object
+      properties:
+        territorio_id:
+          type: string
+          format: uuid
+          nullable: true
+        tipo_agenda_id:
+          type: string
+          format: uuid
+          nullable: true
+        demanda_id:
+          type: string
+          format: uuid
+          nullable: true
+        titulo:
+          type: string
+        descricao:
+          type: string
+          nullable: true
+        status:
+          $ref: '#/components/schemas/StatusAgenda'
+        data_inicio:
+          type: string
+          format: date-time
+        data_fim:
+          type: string
+          format: date-time
+        local_texto:
+          type: string
+          nullable: true
+        responsavel_usuario_id:
+          type: string
+          format: uuid
+          nullable: true
+        eh_agenda_vereador:
+          type: boolean
+
+    AgendaEventCreateRequest:
+      allOf:
+        - $ref: '#/components/schemas/AgendaBase'
+        - type: object
+          required: [titulo, status, data_inicio, data_fim]
+          properties:
+            participantes:
+              type: array
+              items:
+                $ref: '#/components/schemas/AgendaParticipantInput'
+
+    AgendaEventUpdateRequest:
+      $ref: '#/components/schemas/AgendaEventCreateRequest'
+
+    AgendaEventItem:
+      allOf:
+        - $ref: '#/components/schemas/AgendaBase'
+        - type: object
+          properties:
+            id:
+              type: string
+              format: uuid
+
+    AgendaEventDetail:
+      allOf:
+        - $ref: '#/components/schemas/AgendaEventItem'
+        - type: object
+          properties:
+            participantes:
+              type: array
+              items:
+                $ref: '#/components/schemas/AgendaParticipantInput'
+
+    AgendaEventSingleResponse:
+      type: object
+      properties:
+        data:
+          $ref: '#/components/schemas/AgendaEventItem'
+        meta:
+          $ref: '#/components/schemas/Meta'
+
+    AgendaEventDetailResponse:
+      type: object
+      properties:
+        data:
+          $ref: '#/components/schemas/AgendaEventDetail'
+        meta:
+          $ref: '#/components/schemas/Meta'
+
+    AgendaEventListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/AgendaEventItem'
+        meta:
+          $ref: '#/components/schemas/PaginationMeta'
+
+    AgendaStatusPatchRequest:
+      type: object
+      required: [status]
+      properties:
+        status:
+          $ref: '#/components/schemas/StatusAgenda'
+
+    AgendaNotifyRequest:
+      type: object
+      properties:
+        usuarios_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+
+    LegalDocumentBase:
+      type: object
+      properties:
+        demanda_id:
+          type: string
+          format: uuid
+          nullable: true
+        protocolo_id:
+          type: string
+          format: uuid
+          nullable: true
+        projeto_id:
+          type: string
+          format: uuid
+          nullable: true
+        titulo:
+          type: string
+        status:
+          $ref: '#/components/schemas/StatusDocumento'
+        conteudo_texto:
+          type: string
+          nullable: true
+
+    ParecerCreateRequest:
+      allOf:
+        - $ref: '#/components/schemas/LegalDocumentBase'
+        - type: object
+          required: [titulo, status]
+          properties:
+            tema:
+              type: string
+              nullable: true
+            ementa:
+              type: string
+              nullable: true
+
+    ParecerUpdateRequest:
+      $ref: '#/components/schemas/ParecerCreateRequest'
+
+    LegalDocumentItem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        tipo:
+          $ref: '#/components/schemas/TipoDocumento'
+        titulo:
+          type: string
+        status:
+          $ref: '#/components/schemas/StatusDocumento'
+        versao_atual:
+          type: integer
+        autor_usuario_id:
+          type: string
+          format: uuid
+          nullable: true
+        demanda_id:
+          type: string
+          format: uuid
+          nullable: true
+
+    LegalDocumentSingleResponse:
+      type: object
+      properties:
+        data:
+          $ref: '#/components/schemas/LegalDocumentItem'
+        meta:
+          $ref: '#/components/schemas/Meta'
+
+    LegalDocumentDetailResponse:
+      type: object
+      properties:
+        data:
+          allOf:
+            - $ref: '#/components/schemas/LegalDocumentItem'
+            - type: object
+              properties:
+                conteudo_texto:
+                  type: string
+                  nullable: true
+                versoes:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/DocumentVersionItem'
+        meta:
+          $ref: '#/components/schemas/Meta'
+
+    LegalDocumentListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/LegalDocumentItem'
+        meta:
+          $ref: '#/components/schemas/PaginationMeta'
+
+    DocumentVersionCreateRequest:
+      type: object
+      required: [conteudo_texto]
+      properties:
+        conteudo_texto:
+          type: string
+        resumo_alteracao:
+          type: string
+          nullable: true
+
+    DocumentVersionItem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        numero_versao:
+          type: integer
+        resumo_alteracao:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+
+    ProtocolBase:
+      type: object
+      properties:
+        tipo_protocolo_id:
+          type: string
+          format: uuid
+          nullable: true
+        documento_id:
+          type: string
+          format: uuid
+          nullable: true
+        numero:
+          type: string
+          nullable: true
+        titulo:
+          type: string
+        status:
+          $ref: '#/components/schemas/StatusProtocolo'
+        responsavel_usuario_id:
+          type: string
+          format: uuid
+          nullable: true
+        prazo_final:
+          type: string
+          format: date-time
+          nullable: true
+        origem:
+          type: string
+          nullable: true
+        observacoes:
+          type: string
+          nullable: true
+
+    ProtocolCreateRequest:
+      allOf:
+        - $ref: '#/components/schemas/ProtocolBase'
+        - type: object
+          required: [titulo, status]
+
+    ProtocolUpdateRequest:
+      $ref: '#/components/schemas/ProtocolCreateRequest'
+
+    ProtocolItem:
+      allOf:
+        - $ref: '#/components/schemas/ProtocolBase'
+        - type: object
+          properties:
+            id:
+              type: string
+              format: uuid
+
+    ProtocolSingleResponse:
+      type: object
+      properties:
+        data:
+          $ref: '#/components/schemas/ProtocolItem'
+        meta:
+          $ref: '#/components/schemas/Meta'
+
+    ProtocolDetailResponse:
+      type: object
+      properties:
+        data:
+          $ref: '#/components/schemas/ProtocolItem'
+        meta:
+          $ref: '#/components/schemas/Meta'
+
+    ProtocolListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProtocolItem'
+        meta:
+          $ref: '#/components/schemas/PaginationMeta'
+
+    TaskBase:
+      type: object
+      properties:
+        demanda_id:
+          type: string
+          format: uuid
+          nullable: true
+        protocolo_id:
+          type: string
+          format: uuid
+          nullable: true
+        projeto_id:
+          type: string
+          format: uuid
+          nullable: true
+        titulo:
+          type: string
+        descricao:
+          type: string
+          nullable: true
+        responsavel_usuario_id:
+          type: string
+          format: uuid
+        prioridade:
+          $ref: '#/components/schemas/PrioridadeDemanda'
+        status:
+          $ref: '#/components/schemas/StatusTarefa'
+        data_limite:
+          type: string
+          format: date-time
+          nullable: true
+
+    TaskCreateRequest:
+      allOf:
+        - $ref: '#/components/schemas/TaskBase'
+        - type: object
+          required: [titulo, responsavel_usuario_id, prioridade, status]
+
+    TaskItem:
+      allOf:
+        - $ref: '#/components/schemas/TaskBase'
+        - type: object
+          properties:
+            id:
+              type: string
+              format: uuid
+            data_conclusao:
+              type: string
+              format: date-time
+              nullable: true
+
+    TaskSingleResponse:
+      type: object
+      properties:
+        data:
+          $ref: '#/components/schemas/TaskItem'
+        meta:
+          $ref: '#/components/schemas/Meta'
+
+    TaskListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/TaskItem'
+        meta:
+          $ref: '#/components/schemas/PaginationMeta'
+
+    ProjectBase:
+      type: object
+      properties:
+        territorio_id:
+          type: string
+          format: uuid
+          nullable: true
+        nome:
+          type: string
+        descricao:
+          type: string
+          nullable: true
+        status:
+          $ref: '#/components/schemas/StatusProjeto'
+        responsavel_usuario_id:
+          type: string
+          format: uuid
+          nullable: true
+        prioritario:
+          type: boolean
+        data_inicio:
+          type: string
+          format: date
+          nullable: true
+        data_fim_prevista:
+          type: string
+          format: date
+          nullable: true
+
+    ProjectCreateRequest:
+      allOf:
+        - $ref: '#/components/schemas/ProjectBase'
+        - type: object
+          required: [nome, status]
+
+    ProjectUpdateRequest:
+      $ref: '#/components/schemas/ProjectCreateRequest'
+
+    ProjectItem:
+      allOf:
+        - $ref: '#/components/schemas/ProjectBase'
+        - type: object
+          properties:
+            id:
+              type: string
+              format: uuid
+
+    ProjectSingleResponse:
+      type: object
+      properties:
+        data:
+          $ref: '#/components/schemas/ProjectItem'
+        meta:
+          $ref: '#/components/schemas/Meta'
+
+    ProjectDetailResponse:
+      type: object
+      properties:
+        data:
+          $ref: '#/components/schemas/ProjectItem'
+        meta:
+          $ref: '#/components/schemas/Meta'
+
+    ProjectListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProjectItem'
+        meta:
+          $ref: '#/components/schemas/PaginationMeta'
+
+    TerritorialDashboardResponse:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            cards:
+              type: object
+              properties:
+                quantidade_demandas:
+                  type: integer
+                quantidade_visitas:
+                  type: integer
+                quantidade_eventos:
+                  type: integer
+                tempo_medio_atendimento_horas:
+                  type: number
+                  nullable: true
+            mapa:
+              type: array
+              items:
+                type: object
+                properties:
+                  territorio_id:
+                    type: string
+                    format: uuid
+                  territorio_nome:
+                    type: string
+                  quantidade_demandas:
+                    type: integer
+            temas:
+              type: array
+              items:
+                type: object
+                properties:
+                  tema:
+                    type: string
+                  quantidade:
+                    type: integer
+        meta:
+          $ref: '#/components/schemas/Meta'
+
+    ReportCatalogItem:
+      type: object
+      properties:
+        codigo:
+          type: string
+        nome:
+          type: string
+        categorias:
+          type: array
+          items:
+            type: string
+        formatos:
+          type: array
+          items:
+            type: string
+
+    ReportCatalogResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/ReportCatalogItem'
+        meta:
+          $ref: '#/components/schemas/Meta'
+
+    UploadSingleResponse:
+      type: object
+      properties:
+        data:
+          $ref: '#/components/schemas/UploadItem'
+        meta:
+          $ref: '#/components/schemas/Meta'
+
+    MobileSyncItemRequest:
+      type: object
+      required: [client_generated_id, entidade, payload]
+      properties:
+        client_generated_id:
+          type: string
+        entidade:
+          type: string
+        payload:
+          type: object
+          additionalProperties: true
+
+    MobileSyncRequest:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/MobileSyncItemRequest'
+
+    MobileSyncProcessedItem:
+      type: object
+      properties:
+        client_generated_id:
+          type: string
+        entidade:
+          type: string
+        entidade_id:
+          type: string
+          format: uuid
+        status:
+          type: string
+
+    MobileSyncErrorItem:
+      type: object
+      properties:
+        client_generated_id:
+          type: string
+        entidade:
+          type: string
+        status:
+          type: string
+        message:
+          type: string
+
+    MobileSyncResponse:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            processed:
+              type: array
+              items:
+                $ref: '#/components/schemas/MobileSyncProcessedItem'
+            errors:
+              type: array
+              items:
+                $ref: '#/components/schemas/MobileSyncErrorItem'
+        meta:
+          $ref: '#/components/schemas/Meta'
+
+    AIContextRequest:
+      type: object
+      required: [contexto_tipo, contexto_id]
+      properties:
+        contexto_tipo:
+          type: string
+        contexto_id:
+          type: string
+          format: uuid
+
+    AIContextSummaryResponse:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            resumo:
+              type: string
+        meta:
+          $ref: '#/components/schemas/Meta'
+
+    AINextStepResponse:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            sugestao:
+              type: string
+            justificativa:
+              type: string
+        meta:
+          $ref: '#/components/schemas/Meta'

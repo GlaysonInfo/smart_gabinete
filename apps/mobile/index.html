@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Gabinete IA Aplicativo</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="mobile-app">
+      <header class="app-header">
+        <div>
+          <p class="eyebrow">Gabinete IA</p>
+          <h1>Novo cadastro</h1>
+        </div>
+        <span id="connection" class="status">Conectando</span>
+      </header>
+
+      <section class="field-hero">
+        <img
+          src="/imagens/Logo%20APP%20Mobile.jpg"
+          alt="Logo do aplicativo mobile"
+        />
+        <div>
+          <strong>Campo</strong>
+          <span id="sync-state">Nenhum rascunho pendente</span>
+        </div>
+      </section>
+
+      <nav class="steps" aria-label="Etapas do cadastro">
+        <button class="active" type="button" data-step="1">Contato</button>
+        <button type="button" data-step="2">Consentimento</button>
+        <button type="button" data-step="3">Revisao</button>
+      </nav>
+
+      <form id="cadastro-form">
+        <section class="step active" data-panel="1">
+          <label>
+            Nome completo*
+            <input name="nome" autocomplete="name" required />
+          </label>
+          <label>
+            Telefone
+            <input name="telefone_principal" inputmode="tel" autocomplete="tel" />
+          </label>
+          <label>
+            E-mail
+            <input name="email" type="email" autocomplete="email" />
+          </label>
+          <label>
+            CPF
+            <input name="cpf" inputmode="numeric" />
+          </label>
+          <label>
+            Bairro
+            <input name="bairro" value="Centro" />
+          </label>
+          <label>
+            Territorio
+            <select id="territory-select" name="territorio_id">
+              <option value="">Sem territorio definido</option>
+            </select>
+          </label>
+          <label>
+            Endereco
+            <input name="logradouro" autocomplete="street-address" />
+          </label>
+        </section>
+
+        <section class="step" data-panel="2">
+          <fieldset>
+            <legend>Canais permitidos</legend>
+            <label class="check"><input name="canal_whatsapp" type="checkbox" checked /> WhatsApp</label>
+            <label class="check"><input name="canal_telefone" type="checkbox" checked /> Telefone</label>
+            <label class="check"><input name="canal_email" type="checkbox" /> E-mail</label>
+          </fieldset>
+          <label>
+            Consentimento registrado?*
+            <select name="consentido">
+              <option value="true">Sim</option>
+              <option value="false">Nao</option>
+            </select>
+          </label>
+          <label>
+            Finalidade
+            <select name="finalidade">
+              <option value="atendimento institucional">Atendimento institucional</option>
+              <option value="retorno de demanda">Retorno de demanda</option>
+              <option value="agenda institucional">Agenda institucional</option>
+            </select>
+          </label>
+          <label>
+            Forma do registro
+            <select name="forma_registro">
+              <option value="verbal">Verbal</option>
+              <option value="formulario">Formulario</option>
+              <option value="mensagem">Mensagem</option>
+            </select>
+          </label>
+          <label>
+            Observacao
+            <textarea name="observacoes"></textarea>
+          </label>
+          <label>
+            Nivel politico
+            <select name="nivel_relacionamento">
+              <option value="CONTATO">Contato</option>
+              <option value="PARTICIPANTE">Participante</option>
+              <option value="APOIADOR">Apoiador</option>
+              <option value="LIDERANCA">Lideranca</option>
+              <option value="VOTO_CERTO">Voto certo</option>
+            </select>
+          </label>
+          <label>
+            Engajamento
+            <select name="engajamento">
+              <option value="FRIO">Frio</option>
+              <option value="MORNO">Morno</option>
+              <option value="MEDIO">Medio</option>
+              <option value="FORTE">Forte</option>
+            </select>
+          </label>
+          <label>
+            Voto 2028
+            <select name="voto_2028">
+              <option value="INDEFINIDO">Indefinido</option>
+              <option value="PROVAVEL">Provavel</option>
+              <option value="VOTO_CERTO">Voto certo</option>
+              <option value="NAO_APOIA">Nao apoia</option>
+            </select>
+          </label>
+          <label>
+            Influencia territorial
+            <select name="influencia">
+              <option value="BAIXA">Baixa</option>
+              <option value="MEDIA">Media</option>
+              <option value="ALTA">Alta</option>
+            </select>
+          </label>
+          <label>
+            Origem da classificacao
+            <select name="origem_politica">
+              <option value="DECLARADO">Declarado</option>
+              <option value="INDICACAO">Indicacao de lideranca</option>
+              <option value="OBSERVADO">Observado em campo</option>
+              <option value="PLANILHA">Planilha importada</option>
+            </select>
+          </label>
+        </section>
+
+        <section class="step" data-panel="3">
+          <div id="review" class="review"></div>
+          <div class="sync-actions">
+            <button id="save-draft" type="button" class="secondary">Salvar rascunho</button>
+            <button type="submit">Enviar cadastro</button>
+          </div>
+          <p id="message" class="message"></p>
+        </section>
+      </form>
+
+      <footer class="bottom-actions">
+        <button id="back" type="button" class="secondary">Voltar</button>
+        <button id="next" type="button">Avancar</button>
+      </footer>
+    </main>
+
+    <script src="./app.js"></script>
+  </body>
+</html>
