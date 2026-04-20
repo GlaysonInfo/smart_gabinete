@@ -113,6 +113,7 @@ function updateStep() {
     panel.classList.toggle("active", Number(panel.dataset.panel) === state.step);
   });
   $("#back").disabled = state.step === 1;
+  $("#step-back-top")?.classList.toggle("hidden", state.step === 1);
   $("#next").textContent = state.step === 3 ? "Enviar" : "Avancar";
   if (state.step === 3) renderReview();
 }
@@ -257,6 +258,10 @@ function bindEvents() {
     updateStep();
   });
   $("#back").addEventListener("click", () => {
+    state.step = Math.max(1, state.step - 1);
+    updateStep();
+  });
+  $("#step-back-top")?.addEventListener("click", () => {
     state.step = Math.max(1, state.step - 1);
     updateStep();
   });

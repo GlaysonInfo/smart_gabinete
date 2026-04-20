@@ -67,6 +67,16 @@ button.secondary {
   padding: 24px 20px 14px;
 }
 
+.app-header-copy {
+  min-width: 0;
+}
+
+.app-header-actions {
+  display: grid;
+  justify-items: end;
+  gap: 10px;
+}
+
 .eyebrow {
   margin: 0 0 6px;
   color: var(--blue);
@@ -93,6 +103,10 @@ h1 {
 .status.offline {
   color: var(--danger);
   background: var(--danger-soft);
+}
+
+.hidden {
+  display: none !important;
 }
 
 .field-hero {
@@ -257,6 +271,17 @@ textarea {
   border-top: 1px solid var(--line);
   padding: 14px 20px 20px;
   background: #ffffff;
+}
+
+@media (max-width: 420px) {
+  .app-header {
+    grid-template-columns: 1fr;
+    display: grid;
+  }
+
+  .app-header-actions {
+    justify-items: stretch;
+  }
 }
 
 .message {

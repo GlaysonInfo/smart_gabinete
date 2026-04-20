@@ -121,6 +121,24 @@ function toggleSidebar() {
   openSidebar();
 }
 
+function updateMobileBackButton() {
+  const button = $("#mobile-back");
+  if (!button) return;
+  const shouldShow = isCompactSidebar() && state.currentSection !== "executivo";
+  button.classList.toggle("hidden", !shouldShow);
+  button.textContent = state.currentSection === "list-view" ? "Voltar ao painel" : "Voltar";
+  button.setAttribute("aria-label", state.currentSection === "list-view" ? "Voltar ao painel" : "Voltar ao painel principal");
+}
+
+function goBackFromMobileView() {
+  if (state.currentSection === "list-view") {
+    hideListView();
+    return;
+  }
+  navigateTo("executivo");
+  refreshAssistantContext(defaultAssistantContext("executivo"), { force: true });
+}
+
 function escapeHtml(value) {
   return String(value ?? "")
     .replaceAll("&", "&amp;")
@@ -2845,6 +2863,7 @@ function navigateTo(sectionId) {
   $$(".module").forEach((item) => item.classList.toggle("active", item.id === sectionId));
   const button = $(`.module-nav button[data-section="${sectionId}"]`);
   $(".topbar h1").textContent = button ? button.textContent : $("#list-view-title")?.textContent || "Gabinete Centralizado";
+  updateMobileBackButton();
   if (isCompactSidebar()) closeSidebar();
 }
 
@@ -2908,12 +2927,15 @@ function bindEvents() {
   });
   bindElementEvent("#sidebar-toggle", "click", toggleSidebar);
   bindElementEvent("#sidebar-overlay", "click", closeSidebar);
+  bindElementEvent("#mobile-back", "click", goBackFromMobileView);
   document.addEventListener("click", handleGlobalClick);
   document.addEventListener("keydown", handleGlobalKeydown);
   window.addEventListener("resize", () => {
     if (!isCompactSidebar()) closeSidebar();
+    updateMobileBackButton();
   });
   bindNavigation();
+  updateMobileBackButton();
 }
 
 bindEvents();

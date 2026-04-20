@@ -58,12 +58,18 @@
 
       <div class="main-area">
         <header class="topbar">
-          <div>
+          <div class="topbar-title-group">
+            <button id="mobile-back" type="button" class="secondary mobile-back hidden" aria-label="Voltar ao painel">Voltar</button>
+            <div>
             <p class="eyebrow">Operações do Mandato</p>
             <h1>Gabinete Centralizado</h1>
+            </div>
           </div>
           <div class="top-actions">
-            <button id="sidebar-toggle" type="button" class="secondary sidebar-toggle" aria-label="Abrir menu" aria-expanded="false">&#9776;</button>
+            <button id="sidebar-toggle" type="button" class="secondary sidebar-toggle" aria-label="Abrir menu" aria-expanded="false">
+              <span class="sidebar-toggle-icon" aria-hidden="true">&#9776;</span>
+              <span class="sidebar-toggle-label">Menu</span>
+            </button>
             <label class="search-box">
               <span>Busca rapida</span>
               <input id="global-search" type="search" placeholder="Nome, CPF, telefone, bairro ou observacao" />

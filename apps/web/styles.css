@@ -354,10 +354,20 @@ legend {
   backdrop-filter: blur(14px);
 }
 
+.topbar-title-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
 .topbar h1 {
   color: var(--navy-900);
   font-size: 20px;
   font-weight: 800;
+}
+
+.mobile-back {
+  min-width: 92px;
 }
 
 .top-actions {
@@ -373,11 +383,22 @@ legend {
 }
 
 .sidebar-toggle {
+  gap: 8px;
   min-width: 46px;
   min-height: 46px;
-  padding: 0;
-  font-size: 22px;
+  padding: 0 12px;
   line-height: 1;
+}
+
+.sidebar-toggle-icon {
+  font-size: 22px;
+}
+
+.sidebar-toggle-label {
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 
 .search-box {
@@ -1605,6 +1626,10 @@ legend {
     display: inline-flex;
   }
 
+  .mobile-back {
+    display: inline-flex;
+  }
+
   .module-nav {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -1612,6 +1637,12 @@ legend {
   .topbar {
     position: static;
     padding: 18px 20px;
+  }
+
+  .topbar-title-group {
+    width: 100%;
+    justify-content: space-between;
+    align-items: flex-start;
   }
 
   .top-actions,
@@ -1677,6 +1708,11 @@ legend {
   .topbar h1,
   .section-title h2 {
     font-size: 18px;
+  }
+
+  .sidebar-toggle {
+    width: 100%;
+    justify-content: center;
   }
 
   .assistant-actions {
