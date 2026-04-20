@@ -124,17 +124,17 @@ function toggleSidebar() {
 function updateMobileBackButton() {
   const button = $("#mobile-back");
   if (!button) return;
-  const shouldShow = isCompactSidebar() && state.currentSection !== "executivo";
+  const shouldShow = state.currentSection !== "executivo";
   button.classList.toggle("hidden", !shouldShow);
-  button.textContent = state.currentSection === "list-view" ? "Voltar ao painel" : "Voltar";
-  button.setAttribute("aria-label", state.currentSection === "list-view" ? "Voltar ao painel" : "Voltar ao painel principal");
+  button.textContent = "Voltar ao menu";
+  button.setAttribute("aria-label", "Voltar ao menu inicial");
 }
 
 function goBackFromMobileView() {
-  if (state.currentSection === "list-view") {
-    hideListView();
-    return;
-  }
+  goToInitialMenu();
+}
+
+function goToInitialMenu() {
   navigateTo("executivo");
   refreshAssistantContext(defaultAssistantContext("executivo"), { force: true });
 }
@@ -1116,8 +1116,7 @@ function showListView({ title, eyebrow, items, emptyMessage = "Nenhum registro e
 }
 
 function hideListView() {
-  navigateTo(state.previousSection || "executivo");
-  refreshAssistantContext(defaultAssistantContext(state.previousSection || "executivo"), { force: true });
+  goToInitialMenu();
 }
 
 function openDemandList(filters = {}) {
@@ -1372,7 +1371,13 @@ function handleAlertAction(action, entityId, section, meta = {}) {
 function handleGlobalClick(event) {
   const backButton = event.target.closest("#back-to-dashboard");
   if (backButton) {
-    hideListView();
+    goToInitialMenu();
+    return;
+  }
+
+  const homeTrigger = event.target.closest("#brand-home");
+  if (homeTrigger) {
+    goToInitialMenu();
     return;
   }
 
@@ -2928,6 +2933,7 @@ function bindEvents() {
   bindElementEvent("#sidebar-toggle", "click", toggleSidebar);
   bindElementEvent("#sidebar-overlay", "click", closeSidebar);
   bindElementEvent("#mobile-back", "click", goBackFromMobileView);
+  bindElementEvent("#brand-home", "click", goToInitialMenu);
   document.addEventListener("click", handleGlobalClick);
   document.addEventListener("keydown", handleGlobalKeydown);
   window.addEventListener("resize", () => {

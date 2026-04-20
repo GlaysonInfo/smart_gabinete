@@ -34,9 +34,9 @@
 
     <div id="app" class="app-view hidden">
       <aside class="sidebar">
-        <div class="brand">
+        <button type="button" class="brand" id="brand-home" aria-label="Voltar ao menu inicial">
           <img src="/imagens/Logo%20Gabinete%20IA.jpg" alt="Logo Inteligencia de Gabinete" />
-        </div>
+        </button>
         <nav class="module-nav" aria-label="Modulos">
           <button data-section="executivo" class="active">Comando Central</button>
           <button data-section="crm">Relacionamento</button>
@@ -59,7 +59,7 @@
       <div class="main-area">
         <header class="topbar">
           <div class="topbar-title-group">
-            <button id="mobile-back" type="button" class="secondary mobile-back hidden" aria-label="Voltar ao painel">Voltar</button>
+            <button id="mobile-back" type="button" class="secondary mobile-back hidden" aria-label="Voltar ao menu inicial">Voltar ao menu</button>
             <div>
             <p class="eyebrow">Operações do Mandato</p>
             <h1>Gabinete Centralizado</h1>
@@ -144,7 +144,7 @@
                   <p class="eyebrow" id="list-view-eyebrow">Listagem</p>
                   <h2 id="list-view-title">Itens</h2>
                 </div>
-                <button type="button" class="secondary" id="back-to-dashboard">Voltar ao Painel</button>
+                <button type="button" class="secondary" id="back-to-dashboard">Voltar ao menu inicial</button>
               </div>
               <div id="list-view-content" class="list"></div>
             </section>

@@ -135,6 +135,12 @@ function renderReview() {
     .join("");
 }
 
+function goToStart() {
+  state.step = 1;
+  updateStep();
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
 function saveDraft() {
   const data = formData();
   persistDraft(data);
@@ -265,6 +271,8 @@ function bindEvents() {
     state.step = Math.max(1, state.step - 1);
     updateStep();
   });
+  $("#mobile-home")?.addEventListener("click", goToStart);
+  $("#go-start")?.addEventListener("click", goToStart);
   $("#save-draft").addEventListener("click", saveDraft);
   $("#cadastro-form").addEventListener("submit", submitCadastro);
   $("#cadastro-form").addEventListener("input", () => {

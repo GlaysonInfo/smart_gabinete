@@ -19,7 +19,7 @@
         </div>
       </header>
 
-      <section class="field-hero">
+      <button type="button" id="mobile-home" class="field-hero" aria-label="Voltar ao inicio do cadastro">
         <img
           src="/imagens/Logo%20APP%20Mobile.jpg"
           alt="Logo do aplicativo mobile"
@@ -28,7 +28,7 @@
           <strong>Campo</strong>
           <span id="sync-state">Nenhum rascunho pendente</span>
         </div>
-      </section>
+      </button>
 
       <nav class="steps" aria-label="Etapas do cadastro">
         <button class="active" type="button" data-step="1">Contato</button>
@@ -154,6 +154,7 @@
         <section class="step" data-panel="3">
           <div id="review" class="review"></div>
           <div class="sync-actions">
+            <button id="go-start" type="button" class="secondary">Voltar ao inicio</button>
             <button id="save-draft" type="button" class="secondary">Salvar rascunho</button>
             <button type="submit">Enviar cadastro</button>
           </div>
