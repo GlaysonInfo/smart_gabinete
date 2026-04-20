@@ -1381,6 +1381,12 @@ function handleGlobalClick(event) {
     return;
   }
 
+  const topbarHomeTrigger = event.target.closest("#topbar-home");
+  if (topbarHomeTrigger) {
+    goToInitialMenu();
+    return;
+  }
+
   const navButton = event.target.closest(".module-nav button[data-section]");
   if (navButton) {
     navigateTo(navButton.dataset.section);
@@ -2934,6 +2940,7 @@ function bindEvents() {
   bindElementEvent("#sidebar-overlay", "click", closeSidebar);
   bindElementEvent("#mobile-back", "click", goBackFromMobileView);
   bindElementEvent("#brand-home", "click", goToInitialMenu);
+  bindElementEvent("#topbar-home", "click", goToInitialMenu);
   document.addEventListener("click", handleGlobalClick);
   document.addEventListener("keydown", handleGlobalKeydown);
   window.addEventListener("resize", () => {

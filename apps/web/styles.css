@@ -367,6 +367,23 @@ legend {
   gap: 12px;
 }
 
+.topbar-home {
+  display: none;
+  min-width: auto;
+  min-height: auto;
+  padding: 6px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+}
+
+.topbar-home img {
+  display: block;
+  width: 42px;
+  height: 42px;
+  object-fit: contain;
+}
+
 .topbar h1 {
   color: var(--navy-900);
   font-size: 20px;
@@ -1635,6 +1652,12 @@ legend {
 
   .mobile-back {
     display: inline-flex;
+  }
+
+  .topbar-home {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
   }
 
   .module-nav {
