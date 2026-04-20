@@ -1403,6 +1403,70 @@ paths:
               schema:
                 $ref: '#/components/schemas/AIContextSummaryResponse'
 
+  /ai/contexto-operacional:
+    post:
+      tags: [IA Assistiva]
+      operationId: operationalAIContext
+      summary: Gerar contexto operacional orientado por modulo
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AIContextRequest'
+      responses:
+        '200':
+          description: Contexto operacional gerado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AIOperationalContextResponse'
+
+  /political-os/overview:
+    get:
+      tags: [Relatórios]
+      operationId: getPoliticalOSOverview
+      summary: Obter overview executivo do comando central
+      responses:
+        '200':
+          description: Overview executivo retornado com sucesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PoliticalOSOverviewResponse'
+
+  /sentimento-social/resumo:
+    get:
+      tags: [IA Assistiva]
+      operationId: getSentimentSummary
+      summary: Obter resumo agregado de sentimento com recorte contextual
+      parameters:
+        - name: canal
+          in: query
+          schema:
+            type: string
+            nullable: true
+          description: Filtra o resumo por canal monitorado.
+        - name: periodo
+          in: query
+          schema:
+            type: string
+            nullable: true
+          description: Filtra o resumo por janela de coleta.
+        - name: territorio
+          in: query
+          schema:
+            type: string
+            nullable: true
+          description: Filtra o resumo por território agregado.
+      responses:
+        '200':
+          description: Resumo agregado de sentimento retornado com sucesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SentimentSummaryResponse'
+
   /ai/sugerir-proxima-etapa:
     post:
       tags: [IA Assistiva]
@@ -3101,6 +3165,198 @@ components:
         meta:
           $ref: '#/components/schemas/Meta'
 
+    PoliticalOSCardMetrics:
+      type: object
+      properties:
+        demandas_abertas:
+          type: integer
+        sla_em_risco:
+          type: integer
+        sla_vencido:
+          type: integer
+        contatos:
+          type: integer
+        liderancas:
+          type: integer
+        engajamento_forte:
+          type: integer
+        agenda_pendente:
+          type: integer
+        oficios_pendentes:
+          type: integer
+
+    PoliticalOSSlaQueueItem:
+      type: object
+      properties:
+        id:
+          type: string
+        titulo:
+          type: string
+        prioridade:
+          type: string
+        status:
+          type: string
+        cidadao_nome:
+          type: string
+          nullable: true
+        territorio_nome:
+          type: string
+          nullable: true
+        sla_status:
+          type: string
+        horas_restantes:
+          type: number
+          nullable: true
+        prazo_horas:
+          type: integer
+
+    PoliticalOSHeatmapItem:
+      type: object
+      properties:
+        territorio_id:
+          type: string
+          nullable: true
+        territorio_nome:
+          type: string
+        tipo:
+          type: string
+          nullable: true
+        demandas:
+          type: integer
+        contatos:
+          type: integer
+        liderancas:
+          type: integer
+        score:
+          type: integer
+        nivel_pressao:
+          type: string
+          description: Classificação executiva derivada do score territorial.
+
+    PoliticalOSAlertItem:
+      type: object
+      properties:
+        tipo:
+          type: string
+        titulo:
+          type: string
+        descricao:
+          type: string
+        action:
+          type: string
+        entity_id:
+          type: string
+          nullable: true
+        section:
+          type: string
+        filtro_contexto:
+          type: string
+          nullable: true
+        territorio_id:
+          type: string
+          nullable: true
+        territorio_nome:
+          type: string
+          nullable: true
+
+    PoliticalOSSlaSummary:
+      type: object
+      properties:
+        monitoradas:
+          type: integer
+        no_prazo:
+          type: integer
+        em_risco:
+          type: integer
+        vencidas:
+          type: integer
+        concluidas_no_prazo:
+          type: integer
+        concluidas_em_atraso:
+          type: integer
+
+    PoliticalOSSlaPayload:
+      type: object
+      properties:
+        configuracao:
+          type: object
+          additionalProperties: true
+        resumo:
+          $ref: '#/components/schemas/PoliticalOSSlaSummary'
+        fila:
+          type: array
+          items:
+            $ref: '#/components/schemas/PoliticalOSSlaQueueItem'
+        historico_mensal:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+
+    PoliticalOSOverviewPayload:
+      type: object
+      properties:
+        cards:
+          $ref: '#/components/schemas/PoliticalOSCardMetrics'
+        sla:
+          $ref: '#/components/schemas/PoliticalOSSlaPayload'
+        heatmap:
+          type: array
+          items:
+            $ref: '#/components/schemas/PoliticalOSHeatmapItem'
+        sentimento:
+          $ref: '#/components/schemas/SentimentSummaryData'
+        emendas:
+          $ref: '#/components/schemas/PoliticalOSAmendmentSummary'
+        legislativo:
+          type: array
+          items:
+            type: object
+            properties:
+              etapa:
+                type: string
+              quantidade:
+                type: integer
+        alertas:
+          type: array
+          items:
+            $ref: '#/components/schemas/PoliticalOSAlertItem'
+
+    PoliticalOSAmendmentSummary:
+      type: object
+      properties:
+        valor_indicado:
+          type: number
+          format: float
+          description: Soma dos valores pleiteados pelo gabinete.
+        valor_aprovado:
+          type: number
+          format: float
+          description: Soma dos valores aprovados nas emendas monitoradas.
+        valor_empenhado:
+          type: number
+          format: float
+          description: Soma dos valores empenhados vinculados ao pleito do vereador.
+        aprovadas:
+          type: integer
+          description: Quantidade de emendas com status APROVADA ou EMPENHADA.
+        empenhadas:
+          type: integer
+          description: Quantidade de emendas que ja registram data e valor de empenho.
+        ultima_data_empenho:
+          type: string
+          format: date-time
+          nullable: true
+          description: Data mais recente de empenho encontrada na carteira monitorada.
+
+    PoliticalOSOverviewResponse:
+      type: object
+      properties:
+        data:
+          $ref: '#/components/schemas/PoliticalOSOverviewPayload'
+        meta:
+          $ref: '#/components/schemas/Meta'
+
     ReportCatalogItem:
       type: object
       properties:
@@ -3200,13 +3456,191 @@ components:
 
     AIContextRequest:
       type: object
-      required: [contexto_tipo, contexto_id]
+      required: [contexto_tipo]
       properties:
         contexto_tipo:
           type: string
+          description: "Tipo de contexto assistivo. Exemplos: demanda, contato, agenda, oficio, emenda, modulo, dashboard_card, territorio, sentimento."
         contexto_id:
           type: string
-          format: uuid
+          nullable: true
+        modulo:
+          type: string
+          nullable: true
+        origem:
+          type: string
+          nullable: true
+        filtro:
+          type: string
+          nullable: true
+        canal:
+          type: string
+          nullable: true
+        periodo:
+          type: string
+          nullable: true
+        territorio:
+          type: string
+          nullable: true
+      example:
+        contexto_tipo: territorio
+        contexto_id: 00000000-0000-4000-8000-000000000202
+        modulo: executivo
+        origem: dashboard
+        filtro: Centro
+        canal: INSTAGRAM
+        periodo: 24H
+        territorio: Centro
+
+    SentimentSummaryBucket:
+      type: object
+      properties:
+        quantidade:
+          type: integer
+        canal:
+          type: string
+          nullable: true
+        periodo:
+          type: string
+          nullable: true
+        territorio:
+          type: string
+          nullable: true
+
+    SentimentSummaryData:
+      type: object
+      properties:
+        positivo:
+          type: integer
+        neutro:
+          type: integer
+        negativo:
+          type: integer
+        alerta:
+          type: string
+        tema:
+          type: string
+        canal:
+          type: string
+        periodo:
+          type: string
+        coletado_em:
+          type: string
+          nullable: true
+        amostras:
+          type: integer
+        canais:
+          type: array
+          items:
+            allOf:
+              - $ref: '#/components/schemas/SentimentSummaryBucket'
+              - type: object
+                properties:
+                  canal:
+                    type: string
+        periodos:
+          type: array
+          items:
+            allOf:
+              - $ref: '#/components/schemas/SentimentSummaryBucket'
+              - type: object
+                properties:
+                  periodo:
+                    type: string
+        territorios:
+          type: array
+          items:
+            allOf:
+              - $ref: '#/components/schemas/SentimentSummaryBucket'
+              - type: object
+                properties:
+                  territorio:
+                    type: string
+        filtros_aplicados:
+          type: object
+          properties:
+            canal:
+              type: string
+              nullable: true
+            periodo:
+              type: string
+              nullable: true
+            territorio:
+              type: string
+              nullable: true
+
+    SentimentSummaryResponse:
+      type: object
+      properties:
+        data:
+          $ref: '#/components/schemas/SentimentSummaryData'
+        meta:
+          $ref: '#/components/schemas/Meta'
+
+    AIOperationalSuggestion:
+      type: object
+      properties:
+        titulo:
+          type: string
+        descricao:
+          type: string
+        label:
+          type: string
+        action:
+          type: string
+        section:
+          type: string
+        entity_id:
+          type: string
+          nullable: true
+
+    AIOperationalContextPayload:
+      type: object
+      properties:
+        titulo:
+          type: string
+        subtitulo:
+          type: string
+        resumo:
+          type: string
+        contexto:
+          type: object
+          properties:
+            tipo:
+              type: string
+            id:
+              type: string
+              nullable: true
+            modulo:
+              type: string
+            origem:
+              type: string
+            rotulo:
+              type: string
+            filtro:
+              type: string
+              nullable: true
+            canal:
+              type: string
+              nullable: true
+            periodo:
+              type: string
+              nullable: true
+            territorio:
+              type: string
+              nullable: true
+        sugestoes:
+          type: array
+          items:
+            $ref: '#/components/schemas/AIOperationalSuggestion'
+
+    AIOperationalContextResponse:
+      type: object
+      properties:
+        data:
+          $ref: '#/components/schemas/AIOperationalContextPayload'
+        meta:
+          $ref: '#/components/schemas/Meta'
 
     AIContextSummaryResponse:
       type: object

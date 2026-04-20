@@ -110,6 +110,7 @@ Observacao:
 
 - O projeto usa persistencia local em JSON. Sem disco persistente, os dados podem ser perdidos a cada novo deploy.
 - O blueprint ja prepara esse armazenamento em `/opt/render/project/data`.
+- Ao subir uma nova versao, o backend aplica migracoes leves no boot para manter o JSON persistido compativel, incluindo a conversao do modulo de emendas para `pleiteada/aprovada/empenhada`.
 
 ## Validar
 

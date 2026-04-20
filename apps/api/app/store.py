@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from .auth import hash_password, iso_now
+from .config import settings
 
 
 COLLECTIONS = (
@@ -36,6 +37,8 @@ COLLECTIONS = (
     "uploads",
     "sync_mobile",
     "notificacoes",
+    "configuracoes",
+    "sla_historico",
 )
 
 
@@ -61,9 +64,168 @@ OFICIO_ID = "00000000-0000-4000-8000-000000001401"
 SENTIMENTO_ID = "00000000-0000-4000-8000-000000001501"
 CONVENIO_ID = "00000000-0000-4000-8000-000000001601"
 
+BETIM_REGIONALS = (
+    (REGIAO_ID, "Regional Centro", "REG-CENTRO"),
+    ("00000000-0000-4000-8000-000000000204", "Regional Norte", "REG-NORTE"),
+    ("00000000-0000-4000-8000-000000000205", "Regional Alterosas", "REG-ALTEROSAS"),
+    ("00000000-0000-4000-8000-000000000206", "Regional PTB", "REG-PTB"),
+    ("00000000-0000-4000-8000-000000000207", "Regional Icaivera", "REG-ICAIVERA"),
+    ("00000000-0000-4000-8000-000000000208", "Regional Citrolandia", "REG-CITROLANDIA"),
+    ("00000000-0000-4000-8000-000000000209", "Regional Imbirucu", "REG-IMBIRUCU"),
+    ("00000000-0000-4000-8000-000000000210", "Regional Teresopolis", "REG-TERESOPOLIS"),
+    ("00000000-0000-4000-8000-000000000211", "Regional Petrovale", "REG-PETROVALE"),
+    ("00000000-0000-4000-8000-000000000212", "Regional Vianopolis", "REG-VIANOPOLIS"),
+)
+
 
 def new_id() -> str:
     return str(uuid.uuid4())
+
+
+def default_territories(now: str) -> list[dict[str, Any]]:
+    territories = [
+        {
+            "id": territory_id,
+            "gabinete_id": GABINETE_ID,
+            "parent_id": None,
+            "nome": territory_name,
+            "tipo": "REGIAO",
+            "codigo_externo": external_code,
+            "ativo": True,
+            "created_at": now,
+            "updated_at": now,
+        }
+        for territory_id, territory_name, external_code in BETIM_REGIONALS
+    ]
+    territories.extend(
+        [
+            {
+                "id": BAIRRO_ID,
+                "gabinete_id": GABINETE_ID,
+                "parent_id": REGIAO_ID,
+                "nome": "Centro",
+                "tipo": "BAIRRO",
+                "codigo_externo": "BAI-CENTRO",
+                "ativo": True,
+                "created_at": now,
+                "updated_at": now,
+            },
+            {
+                "id": MICRO_ID,
+                "gabinete_id": GABINETE_ID,
+                "parent_id": BAIRRO_ID,
+                "nome": "Microarea 1",
+                "tipo": "MICROAREA",
+                "codigo_externo": "MIC-001",
+                "ativo": True,
+                "created_at": now,
+                "updated_at": now,
+            },
+        ]
+    )
+    return territories
+
+
+def ensure_default_regional_territories(state: dict[str, list[dict[str, Any]]]) -> bool:
+    territories = state.setdefault("territorios", [])
+    changed = False
+    now = iso_now()
+
+    for territory in territories:
+        if territory.get("id") == REGIAO_ID and territory.get("nome") == "Regiao Centro":
+            territory["nome"] = "Regional Centro"
+            territory["codigo_externo"] = "REG-CENTRO"
+            territory["updated_at"] = now
+            changed = True
+
+    for territory_id, territory_name, external_code in BETIM_REGIONALS:
+        existing = next(
+            (
+                item
+                for item in territories
+                if item.get("id") == territory_id
+                or (
+                    item.get("gabinete_id") == GABINETE_ID
+                    and item.get("tipo") == "REGIAO"
+                    and item.get("nome") in {territory_name, territory_name.replace("Regional", "Regiao", 1)}
+                )
+            ),
+            None,
+        )
+        if existing:
+            updates = {}
+            if existing.get("nome") != territory_name:
+                updates["nome"] = territory_name
+            if existing.get("codigo_externo") != external_code:
+                updates["codigo_externo"] = external_code
+            if existing.get("parent_id") is not None:
+                updates["parent_id"] = None
+            if existing.get("gabinete_id") != GABINETE_ID:
+                updates["gabinete_id"] = GABINETE_ID
+            if existing.get("tipo") != "REGIAO":
+                updates["tipo"] = "REGIAO"
+            if not existing.get("ativo", True):
+                updates["ativo"] = True
+            if updates:
+                existing.update(updates)
+                existing["updated_at"] = now
+                changed = True
+            continue
+        territories.append(
+            {
+                "id": territory_id,
+                "gabinete_id": GABINETE_ID,
+                "parent_id": None,
+                "nome": territory_name,
+                "tipo": "REGIAO",
+                "codigo_externo": external_code,
+                "ativo": True,
+                "created_at": now,
+                "updated_at": now,
+            }
+        )
+        changed = True
+
+    return changed
+
+
+def normalize_amendment_status(value: str | None) -> str:
+    mapping = {
+        "INDICACAO": "PLEITEADA",
+        "PLEITEADA": "PLEITEADA",
+        "APROVADA": "APROVADA",
+        "EMPENHO": "EMPENHADA",
+        "EMPENHADA": "EMPENHADA",
+        "LIQUIDACAO": "EMPENHADA",
+        "PAGAMENTO": "EMPENHADA",
+        "ENTREGUE": "EMPENHADA",
+    }
+    return mapping.get(str(value or "PLEITEADA").upper(), "PLEITEADA")
+
+
+def ensure_amendment_model(state: dict[str, list[dict[str, Any]]]) -> bool:
+    changed = False
+    for item in state.get("emendas", []):
+        status = normalize_amendment_status(item.get("status_execucao"))
+        if item.get("status_execucao") != status:
+            item["status_execucao"] = status
+            changed = True
+
+        approved = item.get("valor_aprovado")
+        if approved in (None, ""):
+            approved_value = float(item.get("valor_empenhado") or 0)
+            if not approved_value and status in {"APROVADA", "EMPENHADA"}:
+                approved_value = float(item.get("valor_indicado") or 0)
+            item["valor_aprovado"] = approved_value
+            changed = True
+
+        if status == "EMPENHADA" and not item.get("data_empenho"):
+            fallback_date = item.get("data_ultima_movimentacao") or item.get("updated_at") or item.get("created_at")
+            if fallback_date:
+                item["data_empenho"] = fallback_date
+                changed = True
+
+    return changed
 
 
 def seed_state() -> dict[str, list[dict[str, Any]]]:
@@ -127,41 +289,7 @@ def seed_state() -> dict[str, list[dict[str, Any]]]:
             },
         ],
         "auditoria": [],
-        "territorios": [
-            {
-                "id": REGIAO_ID,
-                "gabinete_id": GABINETE_ID,
-                "parent_id": None,
-                "nome": "Regiao Centro",
-                "tipo": "REGIAO",
-                "codigo_externo": "REG-CENTRO",
-                "ativo": True,
-                "created_at": now,
-                "updated_at": now,
-            },
-            {
-                "id": BAIRRO_ID,
-                "gabinete_id": GABINETE_ID,
-                "parent_id": REGIAO_ID,
-                "nome": "Centro",
-                "tipo": "BAIRRO",
-                "codigo_externo": "BAI-CENTRO",
-                "ativo": True,
-                "created_at": now,
-                "updated_at": now,
-            },
-            {
-                "id": MICRO_ID,
-                "gabinete_id": GABINETE_ID,
-                "parent_id": BAIRRO_ID,
-                "nome": "Microarea 1",
-                "tipo": "MICROAREA",
-                "codigo_externo": "MIC-001",
-                "ativo": True,
-                "created_at": now,
-                "updated_at": now,
-            },
-        ],
+        "territorios": default_territories(now),
         "contatos": [
             {
                 "id": CONTATO_ID,
@@ -333,11 +461,11 @@ def seed_state() -> dict[str, list[dict[str, Any]]]:
                 "territorio_id": BAIRRO_ID,
                 "objeto": "Aquisicao de equipamentos para podas preventivas e manutencao de pracas.",
                 "valor_indicado": 250000.0,
+                "valor_aprovado": 180000.0,
                 "valor_empenhado": 180000.0,
-                "valor_liquidado": 90000.0,
-                "valor_pago": 45000.0,
-                "status_execucao": "LIQUIDACAO",
+                "status_execucao": "EMPENHADA",
                 "data_indicacao": now,
+                "data_empenho": now,
                 "data_ultima_movimentacao": now,
                 "latitude": -19.9676,
                 "longitude": -44.1986,
@@ -479,6 +607,23 @@ def seed_state() -> dict[str, list[dict[str, Any]]]:
         "uploads": [],
         "sync_mobile": [],
         "notificacoes": [],
+        "configuracoes": [
+            {
+                "id": new_id(),
+                "gabinete_id": GABINETE_ID,
+                "chave": "sla_atendimento",
+                "valor": {
+                    "critica_horas": settings.sla_critical_hours,
+                    "alta_horas": settings.sla_high_hours,
+                    "media_horas": settings.sla_medium_hours,
+                    "baixa_horas": settings.sla_low_hours,
+                    "janela_risco_percentual": settings.sla_warning_ratio,
+                },
+                "created_at": now,
+                "updated_at": now,
+            }
+        ],
+        "sla_historico": [],
     }
 
 
@@ -504,6 +649,10 @@ class JsonStore:
                 if collection not in self.state:
                     self.state[collection] = copy.deepcopy(defaults.get(collection, []))
                     changed = True
+            if ensure_default_regional_territories(self.state):
+                changed = True
+            if ensure_amendment_model(self.state):
+                changed = True
             if changed:
                 self.save()
 

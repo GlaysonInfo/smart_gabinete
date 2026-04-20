@@ -16,6 +16,11 @@ class Settings:
     access_token_minutes = int(os.getenv("GABINETE_IA_ACCESS_MINUTES", "60"))
     refresh_token_days = int(os.getenv("GABINETE_IA_REFRESH_DAYS", "7"))
     password_pepper = os.getenv("GABINETE_IA_PASSWORD_PEPPER", "gabinete-ia-dev")
+    sla_critical_hours = int(os.getenv("GABINETE_IA_SLA_CRITICA_HOURS", "4"))
+    sla_high_hours = int(os.getenv("GABINETE_IA_SLA_ALTA_HOURS", "24"))
+    sla_medium_hours = int(os.getenv("GABINETE_IA_SLA_MEDIA_HOURS", "72"))
+    sla_low_hours = int(os.getenv("GABINETE_IA_SLA_BAIXA_HOURS", "120"))
+    sla_warning_ratio = float(os.getenv("GABINETE_IA_SLA_WARNING_RATIO", "0.75"))
 
 
 settings = Settings()

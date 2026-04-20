@@ -5,13 +5,43 @@ const state = {
   step: 1,
   token: null,
   territories: [],
+  draftSyncId: null,
 };
 
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => Array.from(document.querySelectorAll(selector));
 
+function newClientGeneratedId() {
+  if (window.crypto?.randomUUID) return `mobile-${window.crypto.randomUUID()}`;
+  return `mobile-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
 function formData() {
   return Object.fromEntries(new FormData($("#cadastro-form")).entries());
+}
+
+function currentDraftEnvelope() {
+  const raw = localStorage.getItem(DRAFT_KEY);
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+
+function persistDraft(data) {
+  const envelope = {
+    sync_id: state.draftSyncId || newClientGeneratedId(),
+    data,
+  };
+  state.draftSyncId = envelope.sync_id;
+  localStorage.setItem(DRAFT_KEY, JSON.stringify(envelope));
+}
+
+function clearDraft() {
+  state.draftSyncId = null;
+  localStorage.removeItem(DRAFT_KEY);
 }
 
 function setMessage(text, error = false) {
@@ -51,9 +81,27 @@ async function loadTerritories() {
   state.territories = response.data;
   const select = $("#territory-select");
   const current = select.value;
+  const ordered = [...state.territories].sort((left, right) => {
+    const typeOrder = { REGIAO: 0, BAIRRO: 1, MICROAREA: 2 };
+    const leftOrder = typeOrder[left.tipo] ?? 99;
+    const rightOrder = typeOrder[right.tipo] ?? 99;
+    if (leftOrder !== rightOrder) return leftOrder - rightOrder;
+    return String(left.nome || "").localeCompare(String(right.nome || ""), "pt-BR");
+  });
+  const groups = [
+    ["REGIAO", "Regionais"],
+    ["BAIRRO", "Bairros"],
+    ["MICROAREA", "Microareas"],
+  ];
   select.innerHTML =
     '<option value="">Sem territorio definido</option>' +
-    state.territories.map((item) => `<option value="${item.id}">${item.nome} - ${item.tipo}</option>`).join("");
+    groups
+      .map(([type, label]) => {
+        const items = ordered.filter((item) => item.tipo === type);
+        if (!items.length) return "";
+        return `<optgroup label="${label}">${items.map((item) => `<option value="${item.id}">${item.nome} - ${item.tipo}</option>`).join("")}</optgroup>`;
+      })
+      .join("");
   if (state.territories.some((item) => item.id === current)) select.value = current;
 }
 
@@ -88,20 +136,82 @@ function renderReview() {
 
 function saveDraft() {
   const data = formData();
-  localStorage.setItem(DRAFT_KEY, JSON.stringify(data));
+  persistDraft(data);
   $("#sync-state").textContent = "Rascunho salvo neste aparelho";
   setMessage("Rascunho salvo.");
 }
 
 function loadDraft() {
-  const raw = localStorage.getItem(DRAFT_KEY);
-  if (!raw) return;
-  const data = JSON.parse(raw);
+  const envelope = currentDraftEnvelope();
+  if (!envelope?.data) return;
+  state.draftSyncId = envelope.sync_id || newClientGeneratedId();
+  const data = envelope.data;
   Object.entries(data).forEach(([key, value]) => {
     const input = $(`[name="${key}"]`);
     if (input) input.value = value;
   });
   $("#sync-state").textContent = "Rascunho recuperado";
+}
+
+async function syncContact(data) {
+  const clientGeneratedId = state.draftSyncId || newClientGeneratedId();
+  state.draftSyncId = clientGeneratedId;
+  persistDraft(data);
+  const payload = {
+    items: [
+      {
+        client_generated_id: clientGeneratedId,
+        entidade: "contato",
+        payload: {
+          nome: data.nome,
+          telefone_principal: data.telefone_principal || null,
+          email: data.email || null,
+          cpf: data.cpf || null,
+          bairro: data.bairro || null,
+          territorio_id: data.territorio_id || null,
+          logradouro: data.logradouro || null,
+          observacoes: data.observacoes || null,
+          nivel_relacionamento: data.nivel_relacionamento || "CONTATO",
+          engajamento: data.engajamento || "FRIO",
+          voto_2028: data.voto_2028 || "INDEFINIDO",
+          influencia: data.influencia || "BAIXA",
+          prioridade_politica: data.engajamento === "FORTE" || data.influencia === "ALTA" ? "ALTA" : "MEDIA",
+          origem_politica: data.origem_politica || "DECLARADO",
+          origem_cadastro: "MOBILE_CAMPO",
+          tipo_contato: "CIDADAO",
+        },
+      },
+    ],
+  };
+  const response = await api("/mobile/sync", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+  const processed = response.data.processed?.[0];
+  if (!processed?.entidade_id) throw new Error("Sincronizacao mobile nao retornou o contato criado.");
+  return processed.entidade_id;
+}
+
+async function ensureConsent(contactId, data) {
+  const existing = await api(`/contatos/${contactId}/consentimentos`);
+  const channel = data.canal_whatsapp ? "WHATSAPP" : "TELEFONE";
+  const hasEquivalent = existing.data.some(
+    (item) =>
+      item.canal === channel &&
+      Boolean(item.consentido) === (data.consentido === "true") &&
+      item.finalidade === data.finalidade,
+  );
+  if (hasEquivalent) return;
+  await api(`/contatos/${contactId}/consentimentos`, {
+    method: "POST",
+    body: JSON.stringify({
+      canal: channel,
+      consentido: data.consentido === "true",
+      finalidade: data.finalidade,
+      forma_registro: data.forma_registro,
+      observacao: data.observacoes || null,
+    }),
+  });
 }
 
 async function submitCadastro(event) {
@@ -117,44 +227,16 @@ async function submitCadastro(event) {
   try {
     if (!state.token) await connect();
     if (!state.token) throw new Error("Sem conexao com a API. Salve como rascunho.");
-    const contato = await api("/contatos", {
-      method: "POST",
-      body: JSON.stringify({
-        nome: data.nome,
-        telefone_principal: data.telefone_principal || null,
-        email: data.email || null,
-        cpf: data.cpf || null,
-        bairro: data.bairro || null,
-        territorio_id: data.territorio_id || null,
-        logradouro: data.logradouro || null,
-        observacoes: data.observacoes || null,
-        nivel_relacionamento: data.nivel_relacionamento || "CONTATO",
-        engajamento: data.engajamento || "FRIO",
-        voto_2028: data.voto_2028 || "INDEFINIDO",
-        influencia: data.influencia || "BAIXA",
-        prioridade_politica: data.engajamento === "FORTE" || data.influencia === "ALTA" ? "ALTA" : "MEDIA",
-        origem_politica: data.origem_politica || "DECLARADO",
-        origem_cadastro: "MOBILE_CAMPO",
-        tipo_contato: "CIDADAO",
-      }),
-    });
-    await api(`/contatos/${contato.data.id}/consentimentos`, {
-      method: "POST",
-      body: JSON.stringify({
-        canal: data.canal_whatsapp ? "WHATSAPP" : "TELEFONE",
-        consentido: data.consentido === "true",
-        finalidade: data.finalidade,
-        forma_registro: data.forma_registro,
-        observacao: data.observacoes || null,
-      }),
-    });
-    localStorage.removeItem(DRAFT_KEY);
+    const contactId = await syncContact(data);
+    await ensureConsent(contactId, data);
+    clearDraft();
     $("#cadastro-form").reset();
     state.step = 1;
     updateStep();
-    $("#sync-state").textContent = "Cadastro sincronizado";
+    $("#sync-state").textContent = "Cadastro sincronizado via fila mobile";
     setMessage("Cadastro enviado com sucesso.");
   } catch (error) {
+    persistDraft(data);
     setMessage(error.message, true);
   }
 }

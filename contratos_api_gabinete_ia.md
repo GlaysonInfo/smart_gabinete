@@ -2051,12 +2051,136 @@ Receber lote de registros do app com idempotência.
 
 # 18. Módulo IA Assistiva
 
-## 18.1 POST `/ai/resumir-contexto`
+## 18.0 GET `/political-os/overview`
+### Objetivo
+Retornar o overview executivo consumido pelo painel principal, com cards, fila de SLA, heatmap territorial, sentimento agregado, emendas, legislativo e alertas acionáveis.
+
+### Response 200
+```json
+{
+  "data": {
+    "cards": {
+      "demandas_abertas": 3,
+      "sla_em_risco": 0,
+      "sla_vencido": 2,
+      "contatos": 15,
+      "liderancas": 3,
+      "engajamento_forte": 3,
+      "agenda_pendente": 0,
+      "oficios_pendentes": 2
+    },
+    "heatmap": [
+      {
+        "territorio_id": "uuid",
+        "territorio_nome": "Centro",
+        "demandas": 3,
+        "contatos": 10,
+        "liderancas": 3,
+        "score": 22,
+        "nivel_pressao": "ALTA"
+      }
+    ],
+    "emendas": {
+      "valor_indicado": 350000,
+      "valor_aprovado": 250000,
+      "valor_empenhado": 230000,
+      "aprovadas": 2,
+      "empenhadas": 2,
+      "ultima_data_empenho": "2026-04-17T04:55:22Z"
+    },
+    "alertas": [
+      {
+        "tipo": "OFICIO",
+        "titulo": "Solicitacao de vistoria e poda preventiva",
+        "descricao": "Cobrar Secretaria Municipal de Meio Ambiente hoje. 26d sem resposta.",
+        "action": "open-office",
+        "entity_id": "uuid",
+        "section": "oficios",
+        "filtro_contexto": "pending-offices",
+        "territorio_id": "uuid",
+        "territorio_nome": "Centro"
+      }
+    ]
+  },
+  "meta": {
+    "request_id": "uuid",
+    "timestamp": "2026-04-20T10:00:00Z"
+  }
+}
+```
+
+### Regras
+- `heatmap[].nivel_pressao` sintetiza o score territorial em leitura executiva `BAIXA`, `MEDIA` ou `ALTA`
+- `alertas[].filtro_contexto` ajuda a IA e o front a preservar a origem decisória do alerta, como `sla-overdue`, `sla-risk`, `pending-offices` ou `amendments`
+- `alertas[].territorio_id` e `alertas[].territorio_nome` permitem cruzar o alerta com território sem recomputar contexto no cliente
+- `emendas` resume apenas captação política: valor pleiteado, valor aprovado, valor empenhado, beneficiário e data de empenho
+- o sistema não acompanha execução final da emenda; liquidação, pagamento e entrega ficam fora deste módulo
+
+## 18.1 GET `/sentimento-social/resumo`
+### Objetivo
+Retornar um resumo agregado de sentimento público para o gabinete, com filtros opcionais por canal, período e território, sem recarregar o overview executivo completo.
+
+### Query params
+```text
+?canal=INSTAGRAM&periodo=24H&territorio=Centro
+```
+
+### Response 200
+```json
+{
+  "data": {
+    "positivo": 54,
+    "neutro": 31,
+    "negativo": 15,
+    "alerta": "Comentarios cobram retorno rapido em bairros com maior volume de demandas.",
+    "tema": "Zeladoria urbana",
+    "canal": "INSTAGRAM",
+    "periodo": "24H",
+    "coletado_em": "2026-04-20T11:25:00Z",
+    "amostras": 1,
+    "canais": [
+      {
+        "canal": "INSTAGRAM",
+        "quantidade": 1
+      }
+    ],
+    "periodos": [
+      {
+        "periodo": "24H",
+        "quantidade": 1
+      }
+    ],
+    "territorios": [
+      {
+        "territorio": "Centro",
+        "quantidade": 1
+      }
+    ],
+    "filtros_aplicados": {
+      "canal": "INSTAGRAM",
+      "periodo": "24H",
+      "territorio": "Centro"
+    }
+  },
+  "meta": {
+    "request_id": "uuid",
+    "timestamp": "2026-04-20T10:00:00Z"
+  }
+}
+```
+
+### Regras
+- se o filtro nao encontrar amostras, o backend preserva o conjunto original para evitar painel vazio
+- a resposta expõe buckets auxiliares para montar combos e rankings de canal, período e território
+
+## 18.2 POST `/ai/contexto-operacional`
 ### Request
 ```json
 {
   "contexto_tipo": "demanda",
-  "contexto_id": "uuid"
+  "contexto_id": "uuid",
+  "modulo": "atendimento",
+  "origem": "fila"
 }
 ```
 
@@ -2064,7 +2188,94 @@ Receber lote de registros do app com idempotência.
 ```json
 {
   "data": {
-    "resumo": "Demanda aberta há 2 dias, já triada, aguardando resposta do jurídico."
+    "titulo": "IA: Atendimento",
+    "subtitulo": "Joao da Silva - Centro",
+    "resumo": "Consulta especializada. ALTA | EM_TRIAGEM | 2 dia(s). Territorio Centro; responsavel nao atribuido. Defina responsavel e proximo passo.",
+    "contexto": {
+      "tipo": "demanda",
+      "id": "uuid",
+      "modulo": "atendimento",
+      "origem": "fila",
+      "rotulo": "Consulta especializada",
+      "filtro": null,
+      "canal": null,
+      "periodo": null,
+      "territorio": "Centro"
+    },
+    "sugestoes": [
+      {
+        "titulo": "Atribuir responsavel",
+        "descricao": "Sem dono interno, a fila tende a perder prazo e rastreabilidade.",
+        "label": "Definir responsavel",
+        "action": "focus-demand-assignee",
+        "section": "atendimento",
+        "entity_id": "uuid"
+      }
+    ]
+  },
+  "meta": {
+    "request_id": "uuid",
+    "timestamp": "2026-04-20T10:00:00Z"
+  }
+}
+```
+
+### Regra crítica
+- a IA organiza contexto e fluxo manual, mas não altera estado automaticamente
+- `contexto_tipo` agora pode representar tambem leituras de `territorio` e `sentimento`, permitindo que cards, heatmap e sinais de humor publico virem fluxos orientados por contexto
+
+### Exemplo adicional: leitura territorial
+```json
+{
+  "contexto_tipo": "territorio",
+  "contexto_id": "uuid-bairro-centro",
+  "modulo": "executivo",
+  "origem": "heatmap",
+  "filtro": "Centro"
+}
+```
+
+### Comportamento adicional em heatmap e alertas
+- quando `origem = heatmap`, o resumo territorial explicita `nivel_pressao` e orienta priorização local
+- quando `origem = alerta`, o resumo fica mais curto e orientado à decisão, preservando `filtro` e território do item acionado
+- o objeto `contexto` pode retornar `territorio`, `canal` e `periodo` já resolvidos para o front não recomputar esse escopo
+
+### Exemplo adicional: leitura de sentimento
+```json
+{
+  "contexto_tipo": "sentimento",
+  "modulo": "executivo",
+  "origem": "sentimento",
+  "filtro": "negative",
+  "canal": "INSTAGRAM",
+  "periodo": "24H",
+  "territorio": "Centro"
+}
+```
+
+### Comportamento adicional no contexto de sentimento
+- `canal`, `periodo` e `territorio` refinam o recorte analisado pela IA assistiva
+- o `subtitulo` do contexto passa a refletir o escopo ativo, por exemplo `INSTAGRAM | 24H | Centro`
+- o `resumo` menciona explicitamente o recorte ativo para manter rastreabilidade operacional
+
+---
+
+## 18.3 POST `/ai/resumir-contexto`
+### Request
+```json
+{
+  "contexto_tipo": "demanda",
+  "contexto_id": "uuid",
+  "modulo": "atendimento",
+  "origem": "fila"
+}
+```
+
+### Response 200
+```json
+{
+  "data": {
+    "resumo": "Consulta especializada. ALTA | EM_TRIAGEM | 2 dia(s). Territorio Centro; responsavel nao atribuido. Defina responsavel e proximo passo."
   },
   "meta": {
     "request_id": "uuid",
@@ -2075,12 +2286,14 @@ Receber lote de registros do app com idempotência.
 
 ---
 
-## 18.2 POST `/ai/sugerir-proxima-etapa`
+## 18.4 POST `/ai/sugerir-proxima-etapa`
 ### Request
 ```json
 {
   "contexto_tipo": "demanda",
-  "contexto_id": "uuid"
+  "contexto_id": "uuid",
+  "modulo": "atendimento",
+  "origem": "fila"
 }
 ```
 
@@ -2103,8 +2316,8 @@ Receber lote de registros do app com idempotência.
 
 ---
 
-## 18.3 POST `/ai/resumir-documento`
-## 18.4 POST `/ai/alertas-risco`
+## 18.5 POST `/ai/resumir-documento`
+## 18.6 POST `/ai/alertas-risco`
 
 ---
 

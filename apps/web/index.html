@@ -82,18 +82,16 @@
               <div class="section-title">
                 <div>
                   <p class="eyebrow">Painel estrategico</p>
-                  <h2>Prioridades, territorio e entregas</h2>
+                  <h2>Território & Ação</h2>
                 </div>
-                <button id="ai-first-demand" type="button">Resumir demanda selecionada</button>
+                <button id="ai-first-demand" type="button">Resumir demanda</button>
               </div>
 
-              <div id="metric-grid" class="metric-grid"></div>
-
-              <div class="command-grid">
+              <div class="dashboard-priority-grid">
                 <section class="surface">
                   <div class="section-head">
                     <h3>Mapa de calor territorial</h3>
-                    <span>Demandas, contatos e liderancas</span>
+                    <span>Pressao por territorio</span>
                   </div>
                   <div id="heatmap-grid" class="heatmap-grid"></div>
                 </section>
@@ -101,11 +99,22 @@
                 <section class="surface">
                   <div class="section-head">
                     <h3>Sentimento publico</h3>
-                    <span>Ultimas 24h</span>
+                    <span>Leitura agregada</span>
                   </div>
                   <div id="sentiment-panel" class="sentiment-panel"></div>
                 </section>
+              </div>
 
+              <div id="metric-grid" class="metric-grid"></div>
+              <section class="surface sla-surface">
+                <div class="section-head">
+                  <h3>SLA do atendimento</h3>
+                  <span>Prazos configuraveis por prioridade</span>
+                </div>
+                <div id="sla-panel" class="sla-panel"></div>
+              </section>
+
+              <div class="dashboard-secondary-grid">
                 <section class="surface">
                   <div class="section-head">
                     <h3>Emendas e orcamento</h3>
@@ -117,13 +126,22 @@
                 <section class="surface">
                   <div class="section-head">
                     <h3>Alertas de prazo</h3>
-                    <span>Acompanhamento e risco politico</span>
+                    <span>Leitura objetiva de risco</span>
                   </div>
                   <div id="alert-list" class="list compact"></div>
                 </section>
               </div>
             </section>
-
+            <section id="list-view" class="module">
+              <div class="section-title">
+                <div>
+                  <p class="eyebrow" id="list-view-eyebrow">Listagem</p>
+                  <h2 id="list-view-title">Itens</h2>
+                </div>
+                <button type="button" class="secondary" id="back-to-dashboard">Voltar ao Painel</button>
+              </div>
+              <div id="list-view-content" class="list"></div>
+            </section>
             <section id="crm" class="module">
               <div class="section-title">
                 <div>
@@ -365,7 +383,7 @@
               <div class="section-title">
                 <div>
                   <p class="eyebrow">Orcamento</p>
-                  <h2>Emendas e execucao na ponta</h2>
+                  <h2>Emendas pleiteadas e aprovadas</h2>
                 </div>
               </div>
               <div id="amendment-list" class="list"></div>
@@ -375,17 +393,18 @@
                 <label>Numero<input name="numero" required /></label>
                 <label>Area<input name="area" placeholder="Saude, infraestrutura, educacao" /></label>
                 <label>Beneficiario<input name="beneficiario" /></label>
-                <label>Valor indicado<input name="valor_indicado" type="number" min="0" step="0.01" required /></label>
-                <label>Situacao
+                <label>Valor pleiteado<input name="valor_indicado" type="number" min="0" step="0.01" required /></label>
+                <label>Valor aprovado<input name="valor_aprovado" type="number" min="0" step="0.01" /></label>
+                <label>Valor empenhado<input name="valor_empenhado" type="number" min="0" step="0.01" /></label>
+                <label>Data de empenho<input name="data_empenho" type="date" /></label>
+                <label>Status
                   <select name="status_execucao">
-                    <option value="INDICACAO">Indicacao</option>
-                    <option value="EMPENHO">Empenho</option>
-                    <option value="LIQUIDACAO">Liquidacao</option>
-                    <option value="PAGAMENTO">Pagamento</option>
-                    <option value="ENTREGUE">Entregue</option>
+                    <option value="PLEITEADA">Pleiteada</option>
+                    <option value="APROVADA">Aprovada</option>
+                    <option value="EMPENHADA">Empenhada</option>
                   </select>
                 </label>
-                <label>Objeto<textarea name="objeto"></textarea></label>
+                <label>Finalidade<textarea name="objeto"></textarea></label>
                 <button type="submit">Salvar emenda</button>
                 <p id="amendment-message" class="message"></p>
               </form>
@@ -570,6 +589,23 @@
                     <li>Auditoria de criacao, edicao e login</li>
                     <li>Upload com hash SHA-256</li>
                   </ul>
+                  <form id="sla-config-form" class="form-grid compact-form">
+                    <h3>Ajustar SLA de atendimento</h3>
+                    <label>Critica (horas)<input name="critica_horas" type="number" min="1" required /></label>
+                    <label>Alta (horas)<input name="alta_horas" type="number" min="1" required /></label>
+                    <label>Media (horas)<input name="media_horas" type="number" min="1" required /></label>
+                    <label>Baixa (horas)<input name="baixa_horas" type="number" min="1" required /></label>
+                    <label>Faixa de risco
+                      <input name="janela_risco_percentual" type="number" min="0.1" max="0.99" step="0.05" required />
+                    </label>
+                    <button type="submit">Salvar parametros</button>
+                    <p id="sla-config-message" class="message"></p>
+                  </form>
+                  <div class="section-head top-gap">
+                    <h3>Historico mensal de SLA</h3>
+                    <span>Snapshots persistidos</span>
+                  </div>
+                  <div id="sla-history-list" class="list compact"></div>
                 </section>
               </div>
             </section>
@@ -631,12 +667,15 @@
 
           <aside class="assistant-panel">
             <p class="eyebrow">IA Assistiva</p>
-            <h2>Apoio operacional</h2>
-            <p id="selected-demand-label">Nenhuma demanda selecionada.</p>
-            <p id="ai-output">Selecione uma demanda da fila para gerar resumo ou proxima etapa. A IA nao altera a situacao automaticamente.</p>
+            <h2 id="assistant-title">Apoio operacional</h2>
+            <p id="selected-demand-label">Nenhum contexto selecionado.</p>
+            <p id="assistant-subtitle">Selecione um item, card ou alerta para orientar a IA.</p>
+            <p id="ai-output">A IA nao altera estado automaticamente. Ela organiza contexto, prioriza a proxima acao manual e aponta o fluxo mais util.</p>
+            <div id="assistant-suggestions" class="assistant-suggestions"></div>
             <div class="assistant-actions">
-              <button id="ai-summarize" type="button">Resumir demanda</button>
-              <button id="ai-suggest" type="button" class="secondary">Sugerir proxima etapa</button>
+              <button id="ai-refresh-context" type="button" class="secondary">Atualizar IA</button>
+              <button id="ai-summarize" type="button">Resumir</button>
+              <button id="ai-suggest" type="button" class="secondary">Proxima acao</button>
             </div>
           </aside>
         </main>
