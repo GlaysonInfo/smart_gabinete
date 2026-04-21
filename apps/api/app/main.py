@@ -76,6 +76,10 @@ images_dir = settings.root_dir / "imagens"
 if images_dir.exists():
     app.mount("/imagens", StaticFiles(directory=str(images_dir)), name="images")
 
+settings.upload_dir.mkdir(parents=True, exist_ok=True)
+if settings.upload_dir.exists():
+    app.mount("/uploads-public", StaticFiles(directory=str(settings.upload_dir)), name="uploads-public")
+
 
 @app.get("/", include_in_schema=False)
 def root():

@@ -115,8 +115,12 @@ Observacao:
 ## Validar
 
 ```powershell
+pip install -r requirements.txt
 python scripts/smoke_api.py
 ```
+
+O smoke usa `fastapi.testclient` com base dedicada em `data/smoke_gabinete_ia.json`.
+Ele valida login, leitura de perfil, listagens principais, criacao de demanda, historico e o overview executivo sem mexer na base operacional principal.
 
 ## Estrutura
 

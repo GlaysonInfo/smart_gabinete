@@ -237,13 +237,20 @@ def enrich_contact(repo: JsonStore, item: dict[str, Any]) -> dict[str, Any]:
 def enrich_demand(repo: JsonStore, item: dict[str, Any]) -> dict[str, Any]:
     enriched = dict(item)
     contact = repo.get("contatos", enriched.get("cidadao_id")) if enriched.get("cidadao_id") else None
+    cv_upload = repo.get("uploads", enriched.get("cv_upload_id")) if enriched.get("cv_upload_id") else None
     enriched["territorio_nome"] = territory_name(repo, enriched.get("territorio_id"))
     if not enriched["territorio_nome"] and contact:
         enriched["territorio_nome"] = territory_name(repo, contact.get("territorio_id")) or contact.get("bairro")
         enriched["territorio_id"] = enriched.get("territorio_id") or contact.get("territorio_id")
     enriched["cidadao_nome"] = contact.get("nome") if contact else contact_name(repo, enriched.get("cidadao_id"))
+    enriched["cidadao_telefone"] = contact.get("telefone_principal") if contact else None
     enriched["categoria_nome"] = category_name(repo, enriched.get("categoria_id"))
     enriched["responsavel_nome"] = user_name(repo, enriched.get("responsavel_usuario_id"))
+    if cv_upload:
+        enriched["cv_nome_arquivo"] = cv_upload.get("nome_original")
+        enriched["cv_url_publica"] = cv_upload.get("url_publica") or f"/uploads-public/{cv_upload.get('nome_storage')}"
+    elif enriched.get("cv_url"):
+        enriched["cv_url_publica"] = enriched.get("cv_url")
     if enriched.get("status") in {"CONCLUIDA", "CANCELADA"}:
         enriched["criticidade_derivada"] = "BAIXA"
     elif enriched.get("prioridade") == "CRITICA":
@@ -1227,6 +1234,11 @@ def create_demand(
         "data_conclusao": None,
         "tags": payload.get("tags", []),
         "anexos": payload.get("anexos", []),
+        "beneficiario_nome": payload.get("beneficiario_nome"),
+        "tipo_vaga_pretendida": payload.get("tipo_vaga_pretendida"),
+        "vaga_outros_descricao": payload.get("vaga_outros_descricao"),
+        "cv_upload_id": payload.get("cv_upload_id"),
+        "cv_url": payload.get("cv_url"),
     }
     created = repo.create("demandas", item)
     record_sla_history(repo, current_user["gabinete_id"], enrich_demand(repo, created), "CREATE")
@@ -2317,6 +2329,10 @@ async def upload_file(
     storage_name = f"{new_id()}-{Path(file.filename or 'arquivo').name}"
     storage_path = settings.upload_dir / storage_name
     storage_path.write_bytes(contents)
+    try:
+        storage_reference = str(storage_path.relative_to(settings.root_dir)).replace("\\", "/")
+    except ValueError:
+        storage_reference = storage_name
     item = {
         "gabinete_id": current_user["gabinete_id"],
         "nome_original": file.filename,
@@ -2324,11 +2340,12 @@ async def upload_file(
         "mime_type": file.content_type or "application/octet-stream",
         "tamanho_bytes": len(contents),
         "hash_sha256": digest,
-        "url_storage": str(storage_path.relative_to(settings.root_dir)).replace("\\", "/"),
+        "url_storage": storage_reference,
         "contexto": contexto,
         "uploaded_by": current_user["id"],
         "uploaded_at": iso_now(),
         "ativo": True,
+        "url_publica": f"/uploads-public/{storage_name}",
     }
     created = repo.create("uploads", item)
     repo.audit(current_user["gabinete_id"], current_user["id"], "upload", created["id"], "CREATE", payload_novo=created)
@@ -2790,7 +2807,7 @@ def ai_build_summary(repo: JsonStore, context: dict[str, Any]) -> str:
     if modulo == "compliance":
         return f"Compliance acompanha {overview['audit_entries']} registros recentes. Preserve rastreabilidade."
     if modulo == "cadastros":
-        return f"Cadastros: {overview['contacts']} contatos, {overview['users']} usuarios e {overview['territories']} territorios. Corrija lacunas de dados." 
+        return f"Cadastros: {overview['contacts']} contatos, {overview['users']} usuarios e {overview['territories']} territorios. Existem campos nao preenchidos em cadastros." 
     if modulo == "mobile":
         return f"Mobile com {overview['sync_entries']} sincronizacoes e {overview['sync_errors']} erros. Trate falhas de campo."
     return "Contexto localizado para apoio operacional. Revise os dados antes de agir."
@@ -2850,6 +2867,13 @@ def ai_build_suggestions(repo: JsonStore, context: dict[str, Any]) -> list[dict[
             suggestions.append(ai_action("Conduzir a proxima etapa", "A demanda ainda depende de definicao de andamento no fluxo de atendimento.", "Abrir fluxo", "open-demand", "atendimento", context["id"]))
         if not item.get("territorio_id") and not item.get("territorio_nome"):
             suggestions.append(ai_action("Associar territorio", "Sem territorio, o comando central perde leitura de base e cobertura territorial.", "Editar demanda", "focus-demand-edit", "atendimento", context["id"]))
+        if item.get("tipo_demanda") == "INDICACAO_VAGA":
+            if not item.get("cv_upload_id"):
+                suggestions.append(ai_action("Anexar curriculo", "A indicacao para vaga precisa do CV antes do envio para triagem externa.", "Editar demanda", "focus-demand-edit", "atendimento", context["id"]))
+            if not item.get("tipo_vaga_pretendida"):
+                suggestions.append(ai_action("Definir tipo da vaga", "Sem tipo de vaga, a triagem perde velocidade e assertividade.", "Editar demanda", "focus-demand-edit", "atendimento", context["id"]))
+            if item.get("status") == "CONCLUIDA":
+                suggestions.append(ai_action("Arquivar com nota de conclusao", "Agora atualize a situacao para Arquivada e substitua a descricao por uma nota objetiva de alocacao ou encerramento.", "Editar", "focus-demand-edit", "atendimento", context["id"]))
         return suggestions[:4]
 
     if context_type == "contato":

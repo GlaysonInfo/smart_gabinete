@@ -39,6 +39,7 @@
         </button>
         <nav class="module-nav" aria-label="Modulos">
           <button data-section="executivo" class="active">Comando Central</button>
+          <button data-section="relatorios">Relatorios</button>
           <button data-section="crm">Relacionamento</button>
           <button data-section="atendimento">Atendimento</button>
           <button data-section="agenda">Agenda</button>
@@ -151,6 +152,48 @@
               </div>
               <div id="list-view-content" class="list"></div>
             </section>
+
+            <section id="relatorios" class="module">
+              <div class="section-title">
+                <div>
+                  <p class="eyebrow">Relatorios gerenciais</p>
+                  <h2>Base, resolutividade e produtividade</h2>
+                </div>
+                <button id="reports-refresh" type="button" class="secondary">Atualizar relatorios</button>
+              </div>
+              <div id="reports-highlight" class="metric-grid"></div>
+              <div class="split">
+                <section class="surface">
+                  <div class="section-head">
+                    <h3>Painel do vereador</h3>
+                    <span>Crescimento e entrega</span>
+                  </div>
+                  <div id="reports-cards" class="reports-grid"></div>
+                </section>
+                <section class="surface">
+                  <div class="section-head">
+                    <h3>Estrategias sugeridas</h3>
+                    <span>Uso politico e gerencial</span>
+                  </div>
+                  <div id="reports-strategies" class="list compact"></div>
+                </section>
+              </div>
+              <section class="surface">
+                <div class="section-head">
+                  <h3>Produtividade da equipe</h3>
+                  <span>Interacoes, demandas, agenda e oficios</span>
+                </div>
+                <div id="reports-team" class="list compact"></div>
+              </section>
+              <section class="surface">
+                <div class="section-head">
+                  <h3>Banco de curriculos</h3>
+                  <span>Solicitacoes de indicacao para vaga</span>
+                </div>
+                <div id="reports-jobs" class="list compact"></div>
+              </section>
+            </section>
+
             <section id="crm" class="module">
               <div class="section-title">
                 <div>
@@ -225,6 +268,7 @@
                     <option value="URBANA">Urbana</option>
                     <option value="DOCUMENTO">Documento</option>
                     <option value="INDICACAO">Indicacao</option>
+                    <option value="INDICACAO_VAGA">Indicacao para vaga</option>
                     <option value="CONVENIO">Convenio</option>
                     <option value="OUTRA">Outra</option>
                   </select>
@@ -254,6 +298,26 @@
                   </select>
                 </label>
                 <label>Descricao<textarea name="descricao" required></textarea></label>
+                <div class="vacancy-fields hidden" data-vacancy-fields="edit">
+                  <label>Tipo da vaga
+                    <select name="tipo_vaga_pretendida">
+                      <option value="">Selecione</option>
+                      <option value="ESPECIALISTA">Especialista</option>
+                      <option value="ADMINISTRATIVO">Administrativo</option>
+                      <option value="OUTROS">Outros</option>
+                    </select>
+                  </label>
+                  <label class="hidden" data-vaga-outros-wrap="edit">Especifique a vaga
+                    <input name="vaga_outros_descricao" placeholder="Ex.: auxiliar de producao" />
+                  </label>
+                  <label>Curriculum Vitae
+                    <input name="cv_file" type="file" accept=".pdf,.doc,.docx,.rtf,.txt" />
+                  </label>
+                  <input name="cv_upload_id" type="hidden" />
+                  <input name="cv_url" type="hidden" />
+                  <p id="demand-edit-cv-message" class="message"></p>
+                  <a id="demand-edit-cv-link" class="button-link secondary hidden" href="#" target="_blank" rel="noreferrer">Abrir CV atual</a>
+                </div>
                 <button type="submit">Salvar alteracoes</button>
                 <button id="cancel-demand-edit" type="button" class="secondary">Cancelar</button>
                 <p id="demand-edit-message" class="message"></p>
@@ -276,11 +340,31 @@
                     <option value="URBANA">Urbana</option>
                     <option value="DOCUMENTO">Documento</option>
                     <option value="INDICACAO">Indicacao</option>
+                    <option value="INDICACAO_VAGA">Indicacao para vaga</option>
                     <option value="CONVENIO">Convenio</option>
                     <option value="OUTRA">Outra</option>
                   </select>
                 </label>
                 <label>Descricao<textarea name="descricao" required></textarea></label>
+                <div class="vacancy-fields hidden" data-vacancy-fields="create">
+                  <label>Tipo da vaga
+                    <select name="tipo_vaga_pretendida">
+                      <option value="">Selecione</option>
+                      <option value="ESPECIALISTA">Especialista</option>
+                      <option value="ADMINISTRATIVO">Administrativo</option>
+                      <option value="OUTROS">Outros</option>
+                    </select>
+                  </label>
+                  <label class="hidden" data-vaga-outros-wrap="create">Especifique a vaga
+                    <input name="vaga_outros_descricao" placeholder="Ex.: auxiliar de producao" />
+                  </label>
+                  <label>Curriculum Vitae
+                    <input name="cv_file" type="file" accept=".pdf,.doc,.docx,.rtf,.txt" />
+                  </label>
+                  <input name="cv_upload_id" type="hidden" />
+                  <input name="cv_url" type="hidden" />
+                  <p id="demand-cv-message" class="message"></p>
+                </div>
                 <label>Territorio
                   <select id="demand-territory-select" name="territorio_id"></select>
                 </label>
@@ -472,7 +556,14 @@
                 <div id="contact-list" class="list"></div>
                 <form id="contact-form" class="form-grid">
                   <h3>Novo cidadao ou lideranca</h3>
-                  <input name="tipo_contato" type="hidden" value="CIDADAO" />
+                  <label>Tipo de cadastro
+                    <select name="tipo_contato">
+                      <option value="CIDADAO">Cidadao</option>
+                      <option value="LIDERANCA">Lideranca</option>
+                      <option value="VEREADOR">Vereador</option>
+                      <option value="COLABORADOR">Colaborador</option>
+                    </select>
+                  </label>
                   <label>Nome<input name="nome" required /></label>
                   <label>Telefone<input name="telefone_principal" /></label>
                   <label>E-mail<input name="email" type="email" /></label>
@@ -553,6 +644,7 @@
                   <label>Telefone<input name="telefone" /></label>
                   <label>Perfil
                     <select name="perfil">
+                      <option value="VEREADOR">Vereador</option>
                       <option value="COLABORADOR_EXTERNO">Colaborador externo</option>
                       <option value="ASSESSOR_NIVEL_1">Assessor nivel 1</option>
                       <option value="SUPERVISOR_EQUIPE">Supervisor de equipe</option>

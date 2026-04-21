@@ -1301,6 +1301,22 @@ legend {
   grid-column: 1 / -1;
 }
 
+.vacancy-fields {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+  padding: 16px;
+  border: 1px dashed var(--line-strong);
+  border-radius: 18px;
+  background: var(--panel-2);
+}
+
+.vacancy-fields .message,
+.vacancy-fields .button-link {
+  grid-column: 1 / -1;
+}
+
 .form-grid button {
   align-self: end;
 }
@@ -1464,6 +1480,83 @@ legend {
   gap: 20px;
 }
 
+.reports-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.report-card {
+  display: grid;
+  gap: 12px;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  background: linear-gradient(180deg, #ffffff 0%, #f7fbff 100%);
+}
+
+.report-card strong {
+  color: var(--navy-900);
+  font-size: 16px;
+}
+
+.report-card p,
+.report-card small {
+  color: var(--ink-soft);
+  line-height: 1.5;
+}
+
+.report-value {
+  color: var(--navy-900);
+  font-size: 30px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.report-kpis {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.report-kpis span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  border-radius: 999px;
+  padding: 0 10px;
+  color: var(--navy-900);
+  background: var(--blue-soft);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.report-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.report-strategy {
+  display: grid;
+  gap: 6px;
+  padding: 16px 18px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+}
+
+.report-strategy strong,
+.report-team-title {
+  color: var(--navy-900);
+}
+
+.report-team-score {
+  color: var(--navy-900);
+  font-size: 24px;
+  font-weight: 800;
+}
+
 .control-list {
   display: grid;
   gap: 12px;
@@ -1587,6 +1680,7 @@ legend {
   .command-grid,
   .dashboard-priority-grid,
   .dashboard-secondary-grid,
+  .reports-grid,
   .crm-grid,
   .split,
   .kanban,

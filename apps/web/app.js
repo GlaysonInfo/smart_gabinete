@@ -74,6 +74,7 @@ const state = {
   offices: [],
   audit: [],
   syncHistory: [],
+  reportCatalog: [],
   selectedDemandId: null,
   selectedContactId: null,
   editingDemandId: null,
@@ -268,6 +269,10 @@ function labelCode(value) {
     REALIZADO: "Realizado",
     CANCELADO: "Cancelado",
     INDICACAO: "Indicacao",
+    INDICACAO_VAGA: "Indicacao para vaga",
+    ESPECIALISTA: "Especialista",
+    ADMINISTRATIVO: "Administrativo",
+    OUTROS: "Outros",
     EMPENHO: "Empenho",
     LIQUIDACAO: "Liquidacao",
     PAGAMENTO: "Pagamento",
@@ -321,6 +326,85 @@ function territoryOptionGroups() {
     ["BAIRRO", "Bairros"],
     ["MICROAREA", "Microareas"],
   ];
+}
+
+function demandanteTypeLabel(value) {
+  const labels = {
+    CIDADAO: "Cidadao",
+    LIDERANCA: "Lideranca",
+    VEREADOR: "Vereador",
+    COLABORADOR: "Colaborador",
+  };
+  return labels[value] || labelCode(value || "CIDADAO");
+}
+
+function activeDemandanteContacts() {
+  return state.contacts.filter((item) => item.tipo_contato !== "ORGAO_PUBLICO" && !["EXCLUIDO", "INATIVO"].includes(item.status));
+}
+
+function internalDemandanteUsers() {
+  return state.users.filter((item) => item.ativo);
+}
+
+function linkedContactForUser(userId) {
+  return activeDemandanteContacts().find((item) => item.usuario_id === userId) || null;
+}
+
+function isWithinDays(value, maxAgeDays, minAgeDays = 0) {
+  if (!value) return false;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return false;
+  const ageDays = (Date.now() - date.getTime()) / 86400000;
+  return ageDays <= maxAgeDays && ageDays > minAgeDays;
+}
+
+function percentageDelta(current, previous) {
+  if (!previous) return current ? 100 : 0;
+  return Math.round(((current - previous) / previous) * 100);
+}
+
+function isGenericTerritoryLabel(value) {
+  const normalized = normalizeTerritoryLabel(value);
+  return ["", "geral", "todos os territorios", "todo territorio", "sem territorio"].includes(normalized);
+}
+
+function sentimentTerritoryFocus() {
+  const selectedTerritory = state.sentimentFilters.territorio || "";
+  return isGenericTerritoryLabel(selectedTerritory) ? "" : selectedTerritory;
+}
+
+function isVacancyDemand(type) {
+  return type === "INDICACAO_VAGA";
+}
+
+function syncVacancyFields(form, mode) {
+  if (!form) return;
+  const demandType = form.elements.tipo_demanda?.value;
+  const vacancyWrap = form.querySelector(`[data-vacancy-fields="${mode}"]`);
+  const othersWrap = form.querySelector(`[data-vaga-outros-wrap="${mode}"]`);
+  const showVacancy = isVacancyDemand(demandType);
+  vacancyWrap?.classList.toggle("hidden", !showVacancy);
+  if (!showVacancy) {
+    if (form.elements.tipo_vaga_pretendida) form.elements.tipo_vaga_pretendida.value = "";
+    if (form.elements.vaga_outros_descricao) form.elements.vaga_outros_descricao.value = "";
+    if (mode === "create" && form.elements.cv_file) form.elements.cv_file.value = "";
+  }
+  const showOthers = showVacancy && form.elements.tipo_vaga_pretendida?.value === "OUTROS";
+  othersWrap?.classList.toggle("hidden", !showOthers);
+}
+
+function setCvLink(selector, url, fileName) {
+  const link = $(selector);
+  if (!link) return;
+  if (!url) {
+    link.classList.add("hidden");
+    link.removeAttribute("href");
+    link.textContent = "Abrir CV atual";
+    return;
+  }
+  link.href = url;
+  link.textContent = fileName ? `Abrir CV: ${fileName}` : "Abrir CV atual";
+  link.classList.remove("hidden");
 }
 
 function compactAssistantLabel(label) {
@@ -410,7 +494,14 @@ function renderSelectedDemand() {
     return;
   }
   const demand = selectedDemand();
-  label.textContent = demand ? `${demand.titulo} - ${demand.cidadao_nome || "demandante pendente"}` : "Nenhum contexto selecionado.";
+  if (!demand) {
+    label.textContent = "Nenhum contexto selecionado.";
+    return;
+  }
+  const vacancyLabel = isVacancyDemand(demand.tipo_demanda)
+    ? ` - ${labelCode(demand.tipo_vaga_pretendida || "OUTROS")}${demand.vaga_outros_descricao ? ` (${demand.vaga_outros_descricao})` : ""}`
+    : "";
+  label.textContent = `${demand.titulo} - ${demand.cidadao_nome || "demandante pendente"}${vacancyLabel}`;
 }
 
 function assistantContextKey(context) {
@@ -1313,6 +1404,69 @@ function handleDashboardAction(action) {
     refreshAssistantContext({ contexto_tipo: "dashboard_card", modulo: "executivo", origem: "dashboard-card", filtro: action }, { force: true });
     return;
   }
+  if (action === "treat-risk") {
+    const territory = sentimentTerritoryFocus();
+    openDemandList({
+      title: territory ? `Demandas em risco de SLA em ${territory}` : "Demandas em risco de SLA",
+      eyebrow: "Resposta orientada por sentimento",
+      territory: territory || undefined,
+      predicate: (item) => item.sla_status === "EM_RISCO",
+      emptyMessage: territory
+        ? `Nenhuma demanda com SLA em risco encontrada em ${territory}.`
+        : "Nenhuma demanda com SLA em risco encontrada.",
+    });
+    refreshAssistantContext({
+      contexto_tipo: "sentimento",
+      modulo: "executivo",
+      origem: "dashboard-action",
+      filtro: "negative",
+      canal: state.sentimentFilters.canal || null,
+      periodo: state.sentimentFilters.periodo || null,
+      territorio: territory || null,
+    }, { force: true });
+    return;
+  }
+  if (action === "treat-overdue") {
+    const territory = sentimentTerritoryFocus();
+    openDemandList({
+      title: territory ? `Demandas com SLA vencido em ${territory}` : "Demandas com SLA vencido",
+      eyebrow: "Resposta orientada por sentimento",
+      territory: territory || undefined,
+      predicate: (item) => item.sla_status === "VENCIDO",
+      emptyMessage: territory
+        ? `Nenhuma demanda com SLA vencido encontrada em ${territory}.`
+        : "Nenhuma demanda com SLA vencido encontrada.",
+    });
+    refreshAssistantContext({
+      contexto_tipo: "sentimento",
+      modulo: "executivo",
+      origem: "dashboard-action",
+      filtro: "negative-overdue",
+      canal: state.sentimentFilters.canal || null,
+      periodo: state.sentimentFilters.periodo || null,
+      territorio: territory || null,
+    }, { force: true });
+    return;
+  }
+  if (action === "activate-base") {
+    const territory = sentimentTerritoryFocus();
+    openContactList({
+      title: territory ? `Base para ativar em ${territory}` : "Base para ativar",
+      eyebrow: "Mobilizacao orientada por sentimento",
+      engagements: ["FORTE", "ALTO"],
+      territory: territory || undefined,
+    });
+    refreshAssistantContext({
+      contexto_tipo: "sentimento",
+      modulo: "executivo",
+      origem: "dashboard-action",
+      filtro: "positive",
+      canal: state.sentimentFilters.canal || null,
+      periodo: state.sentimentFilters.periodo || null,
+      territorio: territory || null,
+    }, { force: true });
+    return;
+  }
   if (action === "pending-agenda") {
     openAgendaList({
       title: "Agenda pendente",
@@ -1391,6 +1545,22 @@ function handleGlobalClick(event) {
   if (navButton) {
     navigateTo(navButton.dataset.section);
     refreshAssistantContext(defaultAssistantContext(navButton.dataset.section), { force: true });
+    return;
+  }
+
+  const reportButton = event.target.closest("[data-report-section]");
+  if (reportButton) {
+    navigateTo(reportButton.dataset.reportSection);
+    refreshAssistantContext(defaultAssistantContext(reportButton.dataset.reportSection), { force: true });
+    return;
+  }
+
+  const reportDemandButton = event.target.closest("#reports-jobs [data-select-demand]");
+  if (reportDemandButton) {
+    state.selectedDemandId = reportDemandButton.dataset.selectDemand;
+    navigateTo("atendimento");
+    renderDemands();
+    refreshAssistantContext({ contexto_tipo: "demanda", contexto_id: state.selectedDemandId, modulo: "atendimento", origem: "relatorios" }, { force: true });
     return;
   }
 
@@ -1648,8 +1818,9 @@ function renderSentiment() {
     <div class="dashboard-inline-actions">
       <button type="button" class="secondary" data-dashboard-action="leadership">Ver liderancas</button>
       <button type="button" class="secondary" data-dashboard-action="strong-engagement">Ver base mobilizada</button>
-      <button type="button" class="secondary" data-ai-context-type="sentimento" data-ai-context-module="executivo" data-ai-context-origin="sentimento" data-ai-context-filter="negative" data-ai-context-channel="${escapeHtml(state.sentimentFilters.canal)}" data-ai-context-period="${escapeHtml(state.sentimentFilters.periodo)}" data-ai-context-territory="${escapeHtml(state.sentimentFilters.territorio)}">Tratar risco</button>
-      <button type="button" class="secondary" data-ai-context-type="sentimento" data-ai-context-module="executivo" data-ai-context-origin="sentimento" data-ai-context-filter="positive" data-ai-context-channel="${escapeHtml(state.sentimentFilters.canal)}" data-ai-context-period="${escapeHtml(state.sentimentFilters.periodo)}" data-ai-context-territory="${escapeHtml(state.sentimentFilters.territorio)}">Ativar base</button>
+      <button type="button" class="secondary" data-dashboard-action="treat-risk">Tratar risco</button>
+      <button type="button" class="secondary" data-dashboard-action="treat-overdue">Tratar vencidas</button>
+      <button type="button" class="secondary" data-dashboard-action="activate-base">Ativar base</button>
     </div>
   `;
 }
@@ -1890,6 +2061,7 @@ function renderDemandCard(item) {
         </div>
       </div>
       <p>${escapeHtml(item.tipo_demanda || "Nao classificada")} - ${escapeHtml(demandTerritory(item))}</p>
+      ${isVacancyDemand(item.tipo_demanda) ? `<p>Vaga: ${escapeHtml(labelCode(item.tipo_vaga_pretendida || "OUTROS"))}${item.vaga_outros_descricao ? ` - ${escapeHtml(item.vaga_outros_descricao)}` : ""}${item.cv_nome_arquivo ? ` - CV: ${escapeHtml(item.cv_nome_arquivo)}` : " - CV pendente"}</p>` : ""}
       <label class="compact-field">Responsavel
         <select data-demand-responsible="${escapeHtml(item.id)}">${userOptions(item.responsavel_usuario_id)}</select>
       </label>
@@ -1917,6 +2089,7 @@ function renderDemandRow(item) {
       <div>
         <h3>${escapeHtml(item.titulo)}</h3>
         <p>Demandante: ${escapeHtml(item.cidadao_nome || "Pendente de regularizacao")} - Tipo: ${escapeHtml(item.tipo_demanda || "Nao classificada")}</p>
+        ${isVacancyDemand(item.tipo_demanda) ? `<p>Vaga: ${escapeHtml(labelCode(item.tipo_vaga_pretendida || "OUTROS"))}${item.vaga_outros_descricao ? ` - ${escapeHtml(item.vaga_outros_descricao)}` : ""}</p>` : ""}
         <p>Territorio: ${escapeHtml(demandTerritory(item))} - Responsavel: ${escapeHtml(item.responsavel_nome || "Sem responsavel")}</p>
       </div>
       <span class="status ${statusClass(item.status)}">${escapeHtml(demandStatusLabel(item.status))}</span>
@@ -1937,6 +2110,12 @@ function startDemandEdit(demandId) {
   form.elements.status.value = demand.status || "ABERTA";
   form.elements.responsavel_usuario_id.value = demand.responsavel_usuario_id || "";
   form.elements.territorio_id.value = demand.territorio_id || "";
+  if (form.elements.tipo_vaga_pretendida) form.elements.tipo_vaga_pretendida.value = demand.tipo_vaga_pretendida || "";
+  if (form.elements.vaga_outros_descricao) form.elements.vaga_outros_descricao.value = demand.vaga_outros_descricao || "";
+  if (form.elements.cv_upload_id) form.elements.cv_upload_id.value = demand.cv_upload_id || "";
+  if (form.elements.cv_url) form.elements.cv_url.value = demand.cv_url_publica || demand.cv_url || "";
+  setCvLink("#demand-edit-cv-link", demand.cv_url_publica || demand.cv_url, demand.cv_nome_arquivo);
+  syncVacancyFields(form, "edit");
   form.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
@@ -2060,17 +2239,29 @@ function startContactEdit(contactId) {
 }
 
 function renderContactOptions() {
-  const demandanteContacts = state.contacts.filter((item) => item.tipo_contato !== "ORGAO_PUBLICO" && !["EXCLUIDO", "INATIVO"].includes(item.status));
-  const options =
+  const demandanteContacts = activeDemandanteContacts();
+  const contactOptions =
     '<option value="">Selecione</option>' +
     demandanteContacts
-      .map((item) => `<option value="${escapeHtml(item.id)}">${escapeHtml(item.nome)} - ${escapeHtml(item.telefone_principal || item.bairro || "sem contato")}</option>`)
+      .map((item) => `<option value="${escapeHtml(item.id)}">${escapeHtml(item.nome)} - ${escapeHtml(demandanteTypeLabel(item.tipo_contato || "CIDADAO"))}</option>`)
       .join("");
-  ["#demand-contact-select", "#crm-contact-select", "#interaction-contact-select"].forEach((selector) => {
+  const internalUserOptions = internalDemandanteUsers()
+    .filter((item) => !linkedContactForUser(item.id))
+    .map((item) => `<option value="user:${escapeHtml(item.id)}">${escapeHtml(item.nome)} - ${escapeHtml(item.perfil === "VEREADOR" ? "Vereador" : "Colaborador interno")}</option>`)
+    .join("");
+  const demandSelect = $("#demand-contact-select");
+  if (demandSelect) {
+    const current = demandSelect.value || "";
+    demandSelect.innerHTML = contactOptions + internalUserOptions;
+    if (current && (current.startsWith("user:") || demandanteContacts.some((item) => item.id === current))) {
+      demandSelect.value = current;
+    }
+  }
+  ["#crm-contact-select", "#interaction-contact-select"].forEach((selector) => {
     const select = $(selector);
     if (!select) return;
     const current = select.value || (selector === "#crm-contact-select" ? state.selectedContactId : "");
-    select.innerHTML = options;
+    select.innerHTML = contactOptions;
     if (state.contacts.some((item) => item.id === current)) {
       select.value = current;
     }
@@ -2443,6 +2634,158 @@ function renderCompliance() {
       .join("") || '<p>Nenhum historico mensal de SLA disponivel.</p>';
 }
 
+function renderReports() {
+  const activeContacts = activeDemandanteContacts();
+  const politicalBase = activeContacts.filter((item) => item.tipo_contato !== "COLABORADOR");
+  const openDemands = state.demands.filter((item) => !["CONCLUIDA", "ARQUIVADA", "EXCLUIDO", "CANCELADA"].includes(item.status));
+  const closed30 = state.demands.filter((item) => item.status === "CONCLUIDA" && isWithinDays(item.updated_at || item.data_conclusao || item.created_at, 30));
+  const opened30 = state.demands.filter((item) => isWithinDays(item.created_at || item.data_abertura, 30));
+  const base30 = politicalBase.filter((item) => isWithinDays(item.created_at, 30));
+  const basePrevious30 = politicalBase.filter((item) => isWithinDays(item.created_at, 60, 30));
+  const baseGrowth = percentageDelta(base30.length, basePrevious30.length);
+  const leaders = politicalBase.filter((item) => isLeadershipContact(item));
+  const mobilized = politicalBase.filter((item) => isStrongEngagementContact(item));
+  const voteCertain = politicalBase.filter((item) => item.voto_2028 === "VOTO_CERTO");
+  const overdue = state.demands.filter((item) => item.sla_status === "VENCIDO").length;
+  const risk = state.demands.filter((item) => item.sla_status === "EM_RISCO").length;
+  const completionRate = opened30.length ? Math.round((closed30.length / opened30.length) * 100) : 0;
+  const realizedAgenda30 = state.agenda.filter((item) => item.status === "REALIZADO" && isWithinDays(item.updated_at || item.data_fim || item.data_inicio, 30));
+  const interaction30 = state.interactions.filter((item) => isWithinDays(item.created_at || item.data_contato, 30));
+  const respondedOffices30 = state.offices.filter((item) => ["RESPONDIDO", "CONCLUIDO"].includes(item.status) && isWithinDays(item.updated_at || item.created_at, 30));
+  const activeUsers = internalDemandanteUsers();
+  const teamRows = activeUsers
+    .map((user) => {
+      const interactions = interaction30.filter((item) => item.responsavel_usuario_id === user.id).length;
+      const completedDemands = closed30.filter((item) => item.responsavel_usuario_id === user.id).length;
+      const realizedAgenda = realizedAgenda30.filter((item) => item.responsavel_usuario_id === user.id).length;
+      const respondedOffices = respondedOffices30.filter((item) => item.responsavel_usuario_id === user.id).length;
+      const score = completedDemands * 3 + realizedAgenda * 2 + respondedOffices * 2 + interactions;
+      return { user, interactions, completedDemands, realizedAgenda, respondedOffices, score };
+    })
+    .sort((left, right) => right.score - left.score);
+  const catalogByCode = Object.fromEntries((state.reportCatalog || []).map((item) => [item.codigo, item]));
+  const jobRequests = state.demands
+    .filter((item) => item.tipo_demanda === "INDICACAO_VAGA")
+    .sort((left, right) => String(right.created_at || right.data_abertura || "").localeCompare(String(left.created_at || left.data_abertura || "")));
+
+  $("#reports-highlight").innerHTML = [
+    ["Base ativa", politicalBase.length, baseGrowth >= 0 ? `+${baseGrowth}% vs 30d anteriores` : `${baseGrowth}% vs 30d anteriores`],
+    ["Demandas resolvidas", closed30.length, `${completionRate}% de resolutividade em 30d`],
+    ["Equipe ativa", activeUsers.length, `${interaction30.length} interacoes registradas em 30d`],
+  ]
+    .map(
+      ([label, value, detail]) => `
+        <article class="metric">
+          <span>${escapeHtml(label)}</span>
+          <strong>${escapeHtml(value)}</strong>
+          <small>${escapeHtml(detail)}</small>
+        </article>
+      `,
+    )
+    .join("");
+
+  const reportCards = [
+    {
+      title: "Crescimento da base politica",
+      value: `${baseGrowth >= 0 ? "+" : ""}${baseGrowth}%`,
+      description: "Mostra se o mandato esta ampliando contatos qualificados, liderancas e voto certo com constancia.",
+      kpis: [`${politicalBase.length} registros ativos`, `${leaders.length} liderancas`, `${voteCertain.length} voto certo`],
+      section: "crm",
+      formats: catalogByCode.executivo?.formatos || ["json"],
+      actionLabel: "Abrir relacionamento",
+    },
+    {
+      title: "Resolutividade do atendimento",
+      value: `${completionRate}%`,
+      description: "Compara a fila aberta com o que foi fechado, para mostrar entrega concreta e capacidade de resposta.",
+      kpis: [`${openDemands.length} abertas`, `${risk} em risco`, `${overdue} vencidas`],
+      section: "atendimento",
+      formats: catalogByCode.operacional?.formatos || ["json"],
+      actionLabel: "Abrir atendimento",
+    },
+    {
+      title: "Equipe proativa e produtiva",
+      value: `${interaction30.length}`,
+      description: "Usa interacoes, agenda realizada, oficios respondidos e demandas concluidas para medir cadencia operacional.",
+      kpis: [`${realizedAgenda30.length} agendas realizadas`, `${respondedOffices30.length} oficios respondidos`, `${activeUsers.length} usuarios ativos`],
+      section: "cadastros",
+      formats: catalogByCode.executivo?.formatos || ["json"],
+      actionLabel: "Abrir equipe",
+    },
+    {
+      title: "Banco de curriculos",
+      value: `${jobRequests.length}`,
+      description: "Concentra pedidos de indicacao para vaga com CV pronto para consulta rapida da equipe.",
+      kpis: [`${jobRequests.filter((item) => item.status === "CONCLUIDA").length} concluidas`, `${jobRequests.filter((item) => item.status === "ARQUIVADA").length} arquivadas`, `${jobRequests.filter((item) => item.cv_url_publica).length} com CV`],
+      section: "relatorios",
+      formats: catalogByCode.operacional?.formatos || ["json"],
+      actionLabel: "Ver curriculos",
+    },
+  ];
+  $("#reports-cards").innerHTML = reportCards.map((item) => `
+      <article class="report-card">
+        <strong>${escapeHtml(item.title)}</strong>
+        <div class="report-value">${escapeHtml(item.value)}</div>
+        <p>${escapeHtml(item.description)}</p>
+        <div class="report-kpis">${item.kpis.map((kpi) => `<span>${escapeHtml(kpi)}</span>`).join("")}</div>
+        <small>Formatos previstos: ${escapeHtml(item.formats.join(", "))}</small>
+        <div class="report-actions">
+          <button type="button" class="secondary" data-report-section="${escapeHtml(item.section)}">${escapeHtml(item.actionLabel)}</button>
+        </div>
+      </article>
+    `).join("");
+
+  const strategies = [
+    {
+      title: "Estrategia 1: expandir base com cobertura territorial",
+      text: baseGrowth <= 0 ? "A base nao cresceu no ultimo ciclo. Priorize cadastros em territorios com calor alto e sentimento sensivel para aumentar cobertura politica." : `A base cresceu ${baseGrowth}% no ultimo ciclo. Preserve cadencia em territorio e transforme novos contatos em relacao recorrente.`,
+    },
+    {
+      title: "Estrategia 2: transformar demanda em prova de entrega",
+      text: overdue || risk ? `${overdue} demandas vencidas e ${risk} em risco pedem mutirao de resolucao. O vereador vende entrega, nao fila parada.` : "A fila esta sob controle. Use casos concluidos para narrativa de resultado e para realimentar a base politica.",
+    },
+    {
+      title: "Estrategia 3: ativar curriculos com triagem rapida",
+      text: jobRequests.length ? `Ha ${jobRequests.length} pedido(s) de vaga no banco. Classifique por tipo de vaga e use a descricao final como nota objetiva de alocacao.` : "Ainda nao ha pedido de vaga no banco de curriculos. Quando surgir, registre CV e perfil desejado no ato.",
+    },
+  ];
+  $("#reports-strategies").innerHTML = strategies.map((item) => `
+      <article class="report-strategy">
+        <strong>${escapeHtml(item.title)}</strong>
+        <p>${escapeHtml(item.text)}</p>
+      </article>
+    `).join("");
+
+  $("#reports-team").innerHTML = teamRows.length ? teamRows.map((item) => `
+        <article class="row">
+          <div>
+            <h3 class="report-team-title">${escapeHtml(item.user.nome)}</h3>
+            <p>${escapeHtml(item.user.perfil)} - ${item.user.ativo ? "Ativo" : "Inativo"}</p>
+            <p>${item.interactions} interacoes • ${item.completedDemands} demandas concluidas • ${item.realizedAgenda} agendas realizadas • ${item.respondedOffices} oficios respondidos</p>
+          </div>
+          <div class="row-actions">
+            <button type="button" class="secondary" data-report-section="cadastros">Abrir equipe</button>
+          </div>
+          <span class="report-team-score">${escapeHtml(item.score)}</span>
+        </article>
+      `).join("") : "<p>Nenhum usuario ativo para medir produtividade.</p>";
+
+  $("#reports-jobs").innerHTML = jobRequests.length ? jobRequests.map((item) => `
+      <article class="row">
+        <div>
+          <h3>${escapeHtml(item.beneficiario_nome || item.cidadao_nome || "Pessoa nao identificada")}</h3>
+          <p>${escapeHtml(item.cidadao_telefone || "Sem telefone")} - ${escapeHtml(labelCode(item.tipo_vaga_pretendida || "OUTROS"))}${item.tipo_vaga_pretendida === "OUTROS" && item.vaga_outros_descricao ? ` (${escapeHtml(item.vaga_outros_descricao)})` : ""}</p>
+          <p>Status: ${escapeHtml(demandStatusLabel(item.status))}${item.cv_nome_arquivo ? ` - CV: ${escapeHtml(item.cv_nome_arquivo)}` : " - CV pendente"}</p>
+        </div>
+        <div class="row-actions">
+          ${item.cv_url_publica ? `<a class="button-link secondary" href="${escapeHtml(item.cv_url_publica)}" target="_blank" rel="noreferrer">Abrir CV</a>` : ""}
+          <button type="button" class="secondary" data-select-demand="${escapeHtml(item.id)}">Abrir demanda</button>
+        </div>
+        <span class="status ${statusClass(item.status)}">${escapeHtml(demandStatusLabel(item.status))}</span>
+      </article>
+    `).join("") : "<p>Nenhuma solicitacao de vaga registrada.</p>";
+}
+
 async function saveSlaConfiguration(event) {
   event.preventDefault();
   const form = event.currentTarget;
@@ -2471,6 +2814,7 @@ function renderUser() {
 function renderAll() {
   renderUser();
   renderCommandCenter();
+  renderReports();
   renderDemands();
   renderContacts();
   renderCRM();
@@ -2489,12 +2833,12 @@ function renderAll() {
 }
 
 async function loadData() {
-  const [me, overview, demands, contacts, users, territories, agenda, interactions, propositions, amendments, offices, audit] = await Promise.all([
+  const [me, overview, demands, contacts, users, territories, agenda, interactions, propositions, amendments, offices, audit, reportCatalog] = await Promise.all([
     api("/auth/me"),
     api("/political-os/overview"),
     api("/demandas?page_size=200"),
     api("/contatos?page_size=200"),
-    api("/usuarios?page_size=20"),
+    api("/usuarios?page_size=200"),
     api("/territorios?page_size=200&sort_by=nome&sort_order=asc"),
     api("/agenda?page_size=200"),
     api("/interacoes?page_size=200"),
@@ -2502,6 +2846,7 @@ async function loadData() {
     api("/emendas?page_size=200"),
     api("/oficios?page_size=200"),
     api("/auditoria?page_size=12"),
+    api("/relatorios/catalogo"),
   ]);
   state.user = me.data;
   state.overview = overview.data;
@@ -2516,6 +2861,7 @@ async function loadData() {
   state.amendments = amendments.data;
   state.offices = offices.data;
   state.audit = audit.data;
+  state.reportCatalog = reportCatalog.data;
   renderAll();
   if (state.sentimentFilters.canal || state.sentimentFilters.periodo || state.sentimentFilters.territorio) {
     await refreshSentimentSummary();
@@ -2544,6 +2890,16 @@ async function createContact(event) {
   const form = event.currentTarget;
   setMessage("#contact-message", "Salvando...");
   const data = Object.fromEntries(new FormData(form).entries());
+  if (data.tipo_contato === "LIDERANCA" && (!data.nivel_relacionamento || data.nivel_relacionamento === "CONTATO")) {
+    data.nivel_relacionamento = "LIDERANCA";
+    data.influencia = data.influencia || "ALTA";
+  }
+  if (data.tipo_contato === "VEREADOR") {
+    data.influencia = data.influencia || "ALTA";
+    data.engajamento = data.engajamento || "FORTE";
+    data.voto_2028 = data.voto_2028 === "INDEFINIDO" ? "VOTO_CERTO" : data.voto_2028;
+    data.prioridade_politica = "ALTA";
+  }
   if (!data.territorio_id) delete data.territorio_id;
   try {
     const endpoint = state.editingContactId ? `/contatos/${state.editingContactId}` : "/contatos";
@@ -2604,16 +2960,48 @@ async function createDemand(event) {
   event.preventDefault();
   const form = event.currentTarget;
   setMessage("#demand-message", "Criando...");
+  setMessage("#demand-cv-message", "");
   const data = Object.fromEntries(new FormData(form).entries());
   if (!data.cidadao_id) {
     setMessage("#demand-message", "Selecione um demandante cadastrado antes de criar a demanda.");
     return;
   }
+  if (isVacancyDemand(data.tipo_demanda)) {
+    if (!data.tipo_vaga_pretendida) {
+      setMessage("#demand-message", "Selecione o tipo da vaga para registrar a indicacao.");
+      return;
+    }
+    if (data.tipo_vaga_pretendida === "OUTROS" && !data.vaga_outros_descricao) {
+      setMessage("#demand-message", "Descreva a vaga desejada quando escolher 'Outros'.");
+      return;
+    }
+    const file = form.elements.cv_file?.files?.[0];
+    if (!file) {
+      setMessage("#demand-message", "Anexe o Curriculum Vitae para concluir a indicacao para vaga.");
+      return;
+    }
+  } else {
+    delete data.tipo_vaga_pretendida;
+    delete data.vaga_outros_descricao;
+  }
   if (!data.territorio_id) delete data.territorio_id;
   if (!data.responsavel_usuario_id) delete data.responsavel_usuario_id;
   try {
+    if (isVacancyDemand(data.tipo_demanda)) {
+      const uploaded = await uploadDemandFile(form.elements.cv_file?.files?.[0], data.titulo || data.beneficiario_nome || "vaga");
+      if (uploaded) {
+        data.cv_upload_id = uploaded.id;
+        data.cv_url = uploaded.url_publica || uploaded.url_storage;
+        if (!Array.isArray(data.anexos)) data.anexos = [];
+      }
+    } else {
+      delete data.cv_upload_id;
+      delete data.cv_url;
+    }
+    data.cidadao_id = await ensureDemandanteContact(data.cidadao_id);
     const created = await api("/demandas", { method: "POST", body: JSON.stringify(data) });
     form.reset();
+    syncVacancyFields(form, "create");
     state.selectedDemandId = created.data.id;
     setMessage("#demand-message", "Demanda criada.");
     await loadData();
@@ -2622,18 +3010,68 @@ async function createDemand(event) {
   }
 }
 
+async function ensureDemandanteContact(value) {
+  if (!String(value || "").startsWith("user:")) return value;
+  const userId = String(value).slice(5);
+  const linked = linkedContactForUser(userId);
+  if (linked) return linked.id;
+  const user = state.users.find((item) => item.id === userId);
+  if (!user) throw new Error("Usuario interno nao encontrado para virar demandante.");
+  const payload = {
+    nome: user.nome,
+    email: user.email_login || null,
+    telefone_principal: user.telefone || null,
+    bairro: "Gabinete",
+    tipo_contato: user.perfil === "VEREADOR" ? "VEREADOR" : "COLABORADOR",
+    usuario_id: user.id,
+    origem_cadastro: "WEB_INTERNO",
+    nivel_relacionamento: user.perfil === "VEREADOR" ? "VOTO_CERTO" : "CONTATO",
+    influencia: user.perfil === "VEREADOR" ? "ALTA" : "MEDIA",
+    engajamento: user.perfil === "VEREADOR" ? "FORTE" : "MEDIO",
+    voto_2028: user.perfil === "VEREADOR" ? "VOTO_CERTO" : "NAO_APLICA",
+    prioridade_politica: user.perfil === "VEREADOR" ? "ALTA" : "MEDIA",
+    observacoes: `Demandante interno espelhado automaticamente do usuario ${user.perfil}.`,
+  };
+  const saved = await api("/contatos", { method: "POST", body: JSON.stringify(payload) });
+  state.contacts = [saved.data, ...state.contacts];
+  return saved.data.id;
+}
+
 async function saveDemandEdit(event) {
   event.preventDefault();
   if (!state.editingDemandId) return;
   const form = event.currentTarget;
   setMessage("#demand-edit-message", "Salvando...");
+  setMessage("#demand-edit-cv-message", "");
   const data = Object.fromEntries(new FormData(form).entries());
+  if (isVacancyDemand(data.tipo_demanda)) {
+    if (!data.tipo_vaga_pretendida) {
+      setMessage("#demand-edit-message", "Selecione o tipo da vaga.");
+      return;
+    }
+    if (data.tipo_vaga_pretendida === "OUTROS" && !data.vaga_outros_descricao) {
+      setMessage("#demand-edit-message", "Descreva a vaga desejada quando escolher 'Outros'.");
+      return;
+    }
+    const uploaded = await uploadDemandFile(form.elements.cv_file?.files?.[0], state.editingDemandId);
+    if (uploaded) {
+      data.cv_upload_id = uploaded.id;
+      data.cv_url = uploaded.url_publica || uploaded.url_storage;
+    }
+  } else {
+    data.tipo_vaga_pretendida = null;
+    data.vaga_outros_descricao = null;
+    data.cv_upload_id = null;
+    data.cv_url = null;
+  }
   if (!data.territorio_id) data.territorio_id = null;
   if (!data.responsavel_usuario_id) data.responsavel_usuario_id = null;
   try {
     await api(`/demandas/${state.editingDemandId}`, { method: "PUT", body: JSON.stringify(data) });
     state.editingDemandId = null;
     form.reset();
+    syncVacancyFields(form, "edit");
+    setCvLink("#demand-edit-cv-link", null, null);
     form.classList.add("hidden");
     setMessage("#demand-edit-message", "Demanda atualizada.");
     await loadData();
@@ -2675,6 +3113,15 @@ async function uploadAgendaFile(file, eventoId) {
   const body = new FormData();
   body.append("file", file);
   body.append("contexto", `agenda:${eventoId}`);
+  const uploaded = await api("/uploads", { method: "POST", body });
+  return uploaded.data;
+}
+
+async function uploadDemandFile(file, reference) {
+  if (!file) return null;
+  const body = new FormData();
+  body.append("file", file);
+  body.append("contexto", `demanda-cv:${reference}`);
   const uploaded = await api("/uploads", { method: "POST", body });
   return uploaded.data;
 }
@@ -2915,6 +3362,7 @@ function bindEvents() {
   bindElementEvent("#sync-form", "submit", syncCadastro);
   bindElementEvent("#logout", "click", onLogout);
   bindElementEvent("#refresh", "click", loadData);
+  bindElementEvent("#reports-refresh", "click", loadData);
   bindElementEvent("#ai-refresh-context", "click", () => refreshAssistantContext(state.assistantContext, { force: true }));
   bindElementEvent("#ai-first-demand", "click", summarizeFirstDemand);
   bindElementEvent("#ai-summarize", "click", summarizeFirstDemand);
@@ -2928,6 +3376,12 @@ function bindEvents() {
   document.addEventListener("change", (event) => {
     if (event.target.matches("[data-sentiment-filter]")) {
       onSentimentFilterChange(event).catch(console.error);
+    }
+    if (event.target.matches('#demand-form select[name="tipo_demanda"], #demand-form select[name="tipo_vaga_pretendida"]')) {
+      syncVacancyFields($("#demand-form"), "create");
+    }
+    if (event.target.matches('#demand-edit-form select[name="tipo_demanda"], #demand-edit-form select[name="tipo_vaga_pretendida"]')) {
+      syncVacancyFields($("#demand-edit-form"), "edit");
     }
   });
   bindElementEvent("#cancel-demand-edit", "click", () => {
@@ -2948,6 +3402,8 @@ function bindEvents() {
     updateMobileBackButton();
   });
   bindNavigation();
+  syncVacancyFields($("#demand-form"), "create");
+  syncVacancyFields($("#demand-edit-form"), "edit");
   updateMobileBackButton();
 }
 
