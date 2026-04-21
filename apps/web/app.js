@@ -154,16 +154,40 @@ function setMessage(selector, text) {
   if (el) el.textContent = text || "";
 }
 
+function normalizePublicAssetUrl(url) {
+  if (!url) return "";
+  const rendered = String(url).replaceAll("\\", "/").trim();
+  if (!rendered) return "";
+  if (
+    rendered.startsWith("http://") ||
+    rendered.startsWith("https://") ||
+    rendered.startsWith("blob:") ||
+    rendered.startsWith("data:") ||
+    rendered.startsWith("/uploads-public/")
+  ) {
+    return rendered;
+  }
+  if (rendered.startsWith("data/uploads/")) {
+    const parts = rendered.split("/");
+    return `/uploads-public/${parts[parts.length - 1]}`;
+  }
+  if (!rendered.includes("/")) {
+    return `/uploads-public/${rendered}`;
+  }
+  return rendered.startsWith("/") ? rendered : `/${rendered.replace(/^\/+/, "")}`;
+}
+
 function setMediaLink(selector, url, fileName, defaultText = "Abrir arquivo atual") {
   const link = $(selector);
   if (!link) return;
-  if (!url) {
+  const normalizedUrl = normalizePublicAssetUrl(url);
+  if (!normalizedUrl) {
     link.classList.add("hidden");
     link.removeAttribute("href");
     link.textContent = defaultText;
     return;
   }
-  link.href = url;
+  link.href = normalizedUrl;
   link.textContent = fileName ? `${defaultText.replace(" atual", "")}: ${fileName}` : defaultText;
   link.classList.remove("hidden");
 }
@@ -171,13 +195,14 @@ function setMediaLink(selector, url, fileName, defaultText = "Abrir arquivo atua
 function setImagePreview(selector, url, altText = "Foto do perfil") {
   const image = $(selector);
   if (!image) return;
-  if (!url) {
+  const normalizedUrl = normalizePublicAssetUrl(url);
+  if (!normalizedUrl) {
     image.classList.add("hidden");
     image.removeAttribute("src");
     image.alt = altText;
     return;
   }
-  image.src = url;
+  image.src = normalizedUrl;
   image.alt = altText;
   image.classList.remove("hidden");
 }
@@ -286,8 +311,9 @@ function initials(name) {
 
 function avatarMarkup(name, url, className = "") {
   const classes = ["avatar", ...String(className || "").split(/\s+/).filter(Boolean)];
-  if (url) {
-    return `<span class="${escapeHtml(classes.join(" "))}"><img class="avatar-photo" src="${escapeHtml(url)}" alt="Foto de ${escapeHtml(name || "perfil")}" loading="lazy" /></span>`;
+  const normalizedUrl = normalizePublicAssetUrl(url);
+  if (normalizedUrl) {
+    return `<span class="${escapeHtml(classes.join(" "))}"><img class="avatar-photo" src="${escapeHtml(normalizedUrl)}" alt="Foto de ${escapeHtml(name || "perfil")}" loading="lazy" /></span>`;
   }
   return `<span class="${escapeHtml(classes.join(" "))}">${escapeHtml(initials(name))}</span>`;
 }
@@ -485,6 +511,12 @@ function compactAssistantLabel(label) {
     "Abrir fluxo": "Abrir",
   };
   return replacements[label] || label;
+}
+
+function upsertById(items, nextItem) {
+  if (!nextItem?.id) return items;
+  const remaining = items.filter((item) => item.id !== nextItem.id);
+  return [nextItem, ...remaining];
 }
 
 function userOptions(selected) {
@@ -2534,16 +2566,16 @@ function renderAgenda() {
         (item) => `
           <article class="row">
             <div>
-              <h3>${item.titulo}</h3>
-              <p>${AGENDA_TYPES[item.tipo_agenda] || item.tipo_agenda || "Compromisso"} - ${item.local_texto || "Sem local"}</p>
-              <p>Situacao: ${labelCode(item.status)} - Publico estimado: ${item.publico_estimado || 0}</p>
-              ${item.relatorio_execucao ? `<p>Relatorio: ${item.relatorio_execucao}</p>` : ""}
+              <h3>${escapeHtml(item.titulo)}</h3>
+              <p>${escapeHtml(AGENDA_TYPES[item.tipo_agenda] || item.tipo_agenda || "Compromisso")} - ${escapeHtml(item.local_texto || "Sem local")}</p>
+              <p>Situacao: ${escapeHtml(labelCode(item.status))} - Publico estimado: ${escapeHtml(item.publico_estimado || 0)}</p>
+              ${item.relatorio_execucao ? `<p>Relatorio: ${escapeHtml(item.relatorio_execucao)}</p>` : ""}
             </div>
             <div class="row-actions">
-              <button type="button" data-agenda-report="${item.id}" class="secondary">Relatorio</button>
-              <button type="button" data-agenda-done="${item.id}">Realizado</button>
+              <button type="button" data-agenda-report="${escapeHtml(item.id)}" class="secondary">Relatorio</button>
+              <button type="button" data-agenda-done="${escapeHtml(item.id)}">Realizado</button>
             </div>
-            <span class="status">${item.eh_agenda_vereador ? "Parlamentar" : "Equipe"}</span>
+            <span class="status">${escapeHtml(item.eh_agenda_vereador ? "Parlamentar" : "Equipe")}</span>
           </article>
         `,
       )
@@ -2576,7 +2608,9 @@ function renderAgendaOptions() {
   const current = select.value;
   select.innerHTML =
     '<option value="">Selecione um compromisso</option>' +
-    state.agenda.map((item) => `<option value="${item.id}">${item.titulo} - ${labelCode(item.status)}</option>`).join("");
+    state.agenda
+      .map((item) => `<option value="${escapeHtml(item.id)}">${escapeHtml(item.titulo)} - ${escapeHtml(labelCode(item.status))}</option>`)
+      .join("");
   if (state.agenda.some((item) => item.id === current)) {
     select.value = current;
   }
@@ -2999,10 +3033,18 @@ async function createContact(event) {
     const endpoint = state.editingContactId ? `/contatos/${state.editingContactId}` : "/contatos";
     const method = state.editingContactId ? "PUT" : "POST";
     const saved = await api(endpoint, { method, body: JSON.stringify(data) });
+    state.contacts = upsertById(state.contacts, saved.data);
     state.selectedContactId = saved.data.id;
     resetContactFormState();
     setMessage("#contact-message", "Cadastro salvo.");
-    await loadData();
+    renderContacts();
+    renderCRM();
+    try {
+      await loadData();
+    } catch (error) {
+      console.error("Falha ao recarregar dados apos salvar contato", error);
+      setMessage("#contact-message", "Cadastro salvo. A lista foi atualizada localmente; recarga completa pendente.");
+    }
   } catch (error) {
     setMessage("#contact-message", error.message);
   }
@@ -3279,10 +3321,17 @@ async function createUser(event) {
     delete data.foto_file;
     const endpoint = state.editingUserId ? `/usuarios/${state.editingUserId}` : "/usuarios";
     const method = state.editingUserId ? "PUT" : "POST";
-    await api(endpoint, { method, body: JSON.stringify(data) });
+    const saved = await api(endpoint, { method, body: JSON.stringify(data) });
+    state.users = upsertById(state.users, saved.data);
     resetUserFormState();
     setMessage("#user-message", method === "POST" ? "Colaborador salvo. Senha inicial: Senha@123." : "Colaborador atualizado.");
-    await loadData();
+    renderUsers();
+    try {
+      await loadData();
+    } catch (error) {
+      console.error("Falha ao recarregar dados apos salvar colaborador", error);
+      setMessage("#user-message", "Colaborador salvo. A lista foi atualizada localmente; recarga completa pendente.");
+    }
   } catch (error) {
     setMessage("#user-message", error.message);
   }

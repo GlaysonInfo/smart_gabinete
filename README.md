@@ -15,10 +15,14 @@ Base codificada do projeto **GESTAO DE MANDATOS / GABINETE IA** a partir dos con
 
 ## Usuarios demo
 
+Credenciais de demonstracao para ambiente local ou validacao controlada do MVP:
+
 ```text
 chefe@gabineteia.local / Senha@123
 assessor@gabineteia.local / Senha@123
 ```
+
+Evite reutilizar essas credenciais em ambiente publico sem troca imediata de senha.
 
 ## Rodar localmente
 
@@ -97,6 +101,7 @@ Configuracao aplicada pelo blueprint:
 - Health check: `/health`
 - Disco persistente montado em `/opt/render/project/data`
 - Segredos gerados automaticamente para JWT e pepper
+- CORS restrito por padrao para localhost e dominios `*.onrender.com`
 
 Depois do deploy, use:
 
@@ -111,6 +116,20 @@ Observacao:
 - O projeto usa persistencia local em JSON. Sem disco persistente, os dados podem ser perdidos a cada novo deploy.
 - O blueprint ja prepara esse armazenamento em `/opt/render/project/data`.
 - Ao subir uma nova versao, o backend aplica migracoes leves no boot para manter o JSON persistido compativel, incluindo a conversao do modulo de emendas para `pleiteada/aprovada/empenhada`.
+- Se voce usar dominio proprio no frontend, ajuste `GABINETE_IA_CORS_ORIGINS` e, se necessario, `GABINETE_IA_CORS_ORIGIN_REGEX` no Render.
+
+### Reset de senha
+
+O endpoint `POST /api/v1/usuarios/{usuario_id}/reset-senha` nao define mais uma senha fixa.
+Agora ele exige payload explicito com `nova_senha_temporaria`.
+
+Exemplo:
+
+```json
+{
+	"nova_senha_temporaria": "SenhaTemp@2026"
+}
+```
 
 ## Validar
 

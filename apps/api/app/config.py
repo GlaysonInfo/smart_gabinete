@@ -4,6 +4,11 @@ import os
 from pathlib import Path
 
 
+def csv_env(name: str, default: str = "") -> list[str]:
+    raw = os.getenv(name, default)
+    return [item.strip() for item in raw.split(",") if item.strip()]
+
+
 class Settings:
     app_name = "GABINETE IA"
     api_prefix = "/api/v1"
@@ -13,6 +18,11 @@ class Settings:
     upload_dir = Path(os.getenv("GABINETE_IA_UPLOAD_DIR", data_dir / "uploads"))
     jwt_secret = os.getenv("GABINETE_IA_JWT_SECRET", "dev-change-me")
     jwt_algorithm = "HS256"
+    cors_allow_origins = csv_env(
+        "GABINETE_IA_CORS_ORIGINS",
+        "http://127.0.0.1:8010,http://localhost:8010,http://127.0.0.1:8011,http://localhost:8011",
+    )
+    cors_allow_origin_regex = os.getenv("GABINETE_IA_CORS_ORIGIN_REGEX", r"^https://.*\.onrender\.com$")
     access_token_minutes = int(os.getenv("GABINETE_IA_ACCESS_MINUTES", "60"))
     refresh_token_days = int(os.getenv("GABINETE_IA_REFRESH_DAYS", "7"))
     password_pepper = os.getenv("GABINETE_IA_PASSWORD_PEPPER", "gabinete-ia-dev")

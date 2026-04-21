@@ -17,6 +17,8 @@ services:
         generateValue: true
       - key: GABINETE_IA_PASSWORD_PEPPER
         generateValue: true
+      - key: GABINETE_IA_CORS_ORIGIN_REGEX
+        value: ^https://.*\.onrender\.com$
     disk:
       name: gabinete-data
       mountPath: /opt/render/project/data

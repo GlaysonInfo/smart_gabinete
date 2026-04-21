@@ -35,10 +35,29 @@ def public_user(user: dict[str, Any]) -> dict[str, Any]:
     return {key: value for key, value in user.items() if key != "senha_hash"}
 
 
+def normalize_public_asset_url(value: str | None) -> str | None:
+    if not value:
+        return None
+    rendered = str(value).replace("\\", "/").strip()
+    if not rendered:
+        return None
+    if rendered.startswith(("http://", "https://", "/uploads-public/")):
+        return rendered
+    if rendered.startswith("data/uploads/"):
+        return f"/uploads-public/{Path(rendered).name}"
+    if "/" not in rendered:
+        return f"/uploads-public/{rendered}"
+    return rendered if rendered.startswith("/") else f"/{rendered.lstrip('/')}"
+
+
 def upload_public_url(upload: dict[str, Any] | None) -> str | None:
     if not upload:
         return None
-    return upload.get("url_publica") or f"/uploads-public/{upload.get('nome_storage')}"
+    return (
+        normalize_public_asset_url(upload.get("url_publica"))
+        or normalize_public_asset_url(upload.get("url_storage"))
+        or normalize_public_asset_url(upload.get("nome_storage"))
+    )
 
 
 def token_bundle(user: dict[str, Any]) -> dict[str, Any]:
@@ -240,7 +259,7 @@ def enrich_contact(repo: JsonStore, item: dict[str, Any]) -> dict[str, Any]:
     linked_user = repo.get("usuarios", enriched.get("usuario_id")) if enriched.get("usuario_id") else None
     user_photo_upload = repo.get("uploads", linked_user.get("foto_upload_id")) if linked_user and linked_user.get("foto_upload_id") else None
     enriched["territorio_nome"] = territory_name(repo, enriched.get("territorio_id"))
-    enriched["foto_url_publica"] = upload_public_url(photo_upload) or enriched.get("foto_url") or upload_public_url(user_photo_upload)
+    enriched["foto_url_publica"] = upload_public_url(photo_upload) or normalize_public_asset_url(enriched.get("foto_url")) or upload_public_url(user_photo_upload)
     enriched["foto_nome_arquivo"] = (
         photo_upload.get("nome_original")
         if photo_upload
@@ -253,7 +272,7 @@ def enrich_contact(repo: JsonStore, item: dict[str, Any]) -> dict[str, Any]:
 def enrich_user(repo: JsonStore, item: dict[str, Any]) -> dict[str, Any]:
     enriched = public_user(item)
     photo_upload = repo.get("uploads", enriched.get("foto_upload_id")) if enriched.get("foto_upload_id") else None
-    enriched["foto_url_publica"] = upload_public_url(photo_upload) or enriched.get("foto_url")
+    enriched["foto_url_publica"] = upload_public_url(photo_upload) or normalize_public_asset_url(enriched.get("foto_url"))
     enriched["foto_nome_arquivo"] = photo_upload.get("nome_original") if photo_upload else None
     enriched["tem_foto"] = bool(enriched.get("foto_url_publica"))
     return enriched
@@ -278,7 +297,7 @@ def enrich_demand(repo: JsonStore, item: dict[str, Any]) -> dict[str, Any]:
         enriched["cv_nome_arquivo"] = cv_upload.get("nome_original")
         enriched["cv_url_publica"] = upload_public_url(cv_upload)
     elif enriched.get("cv_url"):
-        enriched["cv_url_publica"] = enriched.get("cv_url")
+        enriched["cv_url_publica"] = normalize_public_asset_url(enriched.get("cv_url"))
     if enriched.get("status") in {"CONCLUIDA", "CANCELADA"}:
         enriched["criticidade_derivada"] = "BAIXA"
     elif enriched.get("prioridade") == "CRITICA":
@@ -856,9 +875,12 @@ def request_user_password_reset(
 ):
     if not repo.get("usuarios", usuario_id):
         not_found("Usuario")
-    repo.update("usuarios", usuario_id, {"senha_hash": hash_password("Senha@123")})
+    temporary_password = str(payload.get("nova_senha_temporaria") or "").strip()
+    if len(temporary_password) < 8:
+        business_rule("Informe nova_senha_temporaria com ao menos 8 caracteres.")
+    repo.update("usuarios", usuario_id, {"senha_hash": hash_password(temporary_password)})
     repo.audit(current_user["gabinete_id"], current_user["id"], "usuario", usuario_id, "RESET_SENHA", payload_novo=payload)
-    return success(request, {"status": "RESET_ENFILEIRADO"})
+    return success(request, {"status": "RESET_CONCLUIDO"})
 
 
 @router.get("/equipes")
