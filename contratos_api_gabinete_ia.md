@@ -278,6 +278,8 @@ Retornar contexto do usuário autenticado.
   "email_login": "carlos@gabinete.com",
   "telefone": "31999999999",
   "perfil": "ASSESSOR_NIVEL_1",
+  "foto_upload_id": "uuid-opcional",
+  "foto_url": "/uploads-public/foto-carlos.jpg",
   "equipe_id": "uuid",
   "ativo": true,
   "escopos": [
@@ -301,6 +303,7 @@ Retornar contexto do usuário autenticado.
     "nome": "Carlos Lima",
     "email_login": "carlos@gabinete.com",
     "perfil": "ASSESSOR_NIVEL_1",
+    "foto_url_publica": "/uploads-public/foto-carlos.jpg",
     "ativo": true
   },
   "meta": {
@@ -354,6 +357,8 @@ Retornar contexto do usuário autenticado.
   "nome": "Carlos Lima Atualizado",
   "telefone": "31988888888",
   "perfil": "SUPERVISOR_EQUIPE",
+  "foto_upload_id": "uuid-opcional",
+  "foto_url": "/uploads-public/foto-carlos-atualizada.jpg",
   "equipe_id": "uuid",
   "ativo": true,
   "escopos": [
@@ -692,6 +697,8 @@ Retornar árvore territorial completa.
   "cidade": "Betim",
   "cep": "32600000",
   "tipo_contato": "CIDADAO",
+  "foto_upload_id": "uuid-opcional",
+  "foto_url": "/uploads-public/foto-maria.jpg",
   "observacoes": "Contato presencial"
 }
 ```
@@ -715,6 +722,7 @@ Retornar árvore territorial completa.
 ### Regras
 - nome obrigatório
 - CPF único quando informado
+- `foto_upload_id` e `foto_url` são opcionais
 - pode marcar `duplicidade_suspeita` automaticamente por heurística
 
 ---

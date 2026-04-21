@@ -610,6 +610,15 @@
                       <option value="BAIXA">Baixa</option>
                     </select>
                   </label>
+                  <label>Foto do perfil
+                    <input name="foto_file" type="file" accept="image/*" />
+                  </label>
+                  <input name="foto_upload_id" type="hidden" />
+                  <input name="foto_url" type="hidden" />
+                  <div class="photo-field-preview">
+                    <img id="contact-photo-preview" class="photo-preview hidden" alt="Foto do cadastro" />
+                    <a id="contact-photo-link" class="button-link secondary hidden" href="#" target="_blank" rel="noreferrer">Abrir foto atual</a>
+                  </div>
                   <p class="form-note">Use classificacao politica apenas com base declarada, consentida ou validada pela coordenacao.</p>
                   <button id="contact-submit" type="submit">Salvar cadastro</button>
                   <p id="contact-message" class="message"></p>
@@ -652,6 +661,15 @@
                       <option value="ASSESSOR_JURIDICO">Assessor juridico</option>
                     </select>
                   </label>
+                  <label>Foto do colaborador
+                    <input name="foto_file" type="file" accept="image/*" />
+                  </label>
+                  <input name="foto_upload_id" type="hidden" />
+                  <input name="foto_url" type="hidden" />
+                  <div class="photo-field-preview">
+                    <img id="user-photo-preview" class="photo-preview hidden" alt="Foto do colaborador" />
+                    <a id="user-photo-link" class="button-link secondary hidden" href="#" target="_blank" rel="noreferrer">Abrir foto atual</a>
+                  </div>
                   <button id="user-submit" type="submit">Salvar colaborador</button>
                   <p id="user-message" class="message"></p>
                 </form>

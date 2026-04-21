@@ -35,6 +35,12 @@ def public_user(user: dict[str, Any]) -> dict[str, Any]:
     return {key: value for key, value in user.items() if key != "senha_hash"}
 
 
+def upload_public_url(upload: dict[str, Any] | None) -> str | None:
+    if not upload:
+        return None
+    return upload.get("url_publica") or f"/uploads-public/{upload.get('nome_storage')}"
+
+
 def token_bundle(user: dict[str, Any]) -> dict[str, Any]:
     return {
         "access_token": create_token(user, "access"),
@@ -230,13 +236,33 @@ def is_strong_engagement_contact(item: dict[str, Any]) -> bool:
 
 def enrich_contact(repo: JsonStore, item: dict[str, Any]) -> dict[str, Any]:
     enriched = dict(item)
+    photo_upload = repo.get("uploads", enriched.get("foto_upload_id")) if enriched.get("foto_upload_id") else None
+    linked_user = repo.get("usuarios", enriched.get("usuario_id")) if enriched.get("usuario_id") else None
+    user_photo_upload = repo.get("uploads", linked_user.get("foto_upload_id")) if linked_user and linked_user.get("foto_upload_id") else None
     enriched["territorio_nome"] = territory_name(repo, enriched.get("territorio_id"))
+    enriched["foto_url_publica"] = upload_public_url(photo_upload) or enriched.get("foto_url") or upload_public_url(user_photo_upload)
+    enriched["foto_nome_arquivo"] = (
+        photo_upload.get("nome_original")
+        if photo_upload
+        else linked_user.get("foto_nome_arquivo") if linked_user and linked_user.get("foto_nome_arquivo") else None
+    )
+    enriched["tem_foto"] = bool(enriched.get("foto_url_publica"))
+    return enriched
+
+
+def enrich_user(repo: JsonStore, item: dict[str, Any]) -> dict[str, Any]:
+    enriched = public_user(item)
+    photo_upload = repo.get("uploads", enriched.get("foto_upload_id")) if enriched.get("foto_upload_id") else None
+    enriched["foto_url_publica"] = upload_public_url(photo_upload) or enriched.get("foto_url")
+    enriched["foto_nome_arquivo"] = photo_upload.get("nome_original") if photo_upload else None
+    enriched["tem_foto"] = bool(enriched.get("foto_url_publica"))
     return enriched
 
 
 def enrich_demand(repo: JsonStore, item: dict[str, Any]) -> dict[str, Any]:
     enriched = dict(item)
     contact = repo.get("contatos", enriched.get("cidadao_id")) if enriched.get("cidadao_id") else None
+    responsible = repo.get("usuarios", enriched.get("responsavel_usuario_id")) if enriched.get("responsavel_usuario_id") else None
     cv_upload = repo.get("uploads", enriched.get("cv_upload_id")) if enriched.get("cv_upload_id") else None
     enriched["territorio_nome"] = territory_name(repo, enriched.get("territorio_id"))
     if not enriched["territorio_nome"] and contact:
@@ -246,9 +272,11 @@ def enrich_demand(repo: JsonStore, item: dict[str, Any]) -> dict[str, Any]:
     enriched["cidadao_telefone"] = contact.get("telefone_principal") if contact else None
     enriched["categoria_nome"] = category_name(repo, enriched.get("categoria_id"))
     enriched["responsavel_nome"] = user_name(repo, enriched.get("responsavel_usuario_id"))
+    enriched["cidadao_foto_url"] = enrich_contact(repo, contact).get("foto_url_publica") if contact else None
+    enriched["responsavel_foto_url"] = enrich_user(repo, responsible).get("foto_url_publica") if responsible else None
     if cv_upload:
         enriched["cv_nome_arquivo"] = cv_upload.get("nome_original")
-        enriched["cv_url_publica"] = cv_upload.get("url_publica") or f"/uploads-public/{cv_upload.get('nome_storage')}"
+        enriched["cv_url_publica"] = upload_public_url(cv_upload)
     elif enriched.get("cv_url"):
         enriched["cv_url_publica"] = enriched.get("cv_url")
     if enriched.get("status") in {"CONCLUIDA", "CANCELADA"}:
@@ -741,7 +769,7 @@ def list_users(
         repo,
         query,
         ("nome", "email_login", "perfil"),
-        enrich=public_user,
+        enrich=lambda item: enrich_user(repo, item),
     )
 
 
@@ -764,8 +792,8 @@ def create_user(
         "mfa_habilitado": payload.get("mfa_habilitado", False),
     }
     created = repo.create("usuarios", item)
-    repo.audit(current_user["gabinete_id"], current_user["id"], "usuario", created["id"], "CREATE", payload_novo=public_user(created))
-    return success(request, public_user(created))
+    repo.audit(current_user["gabinete_id"], current_user["id"], "usuario", created["id"], "CREATE", payload_novo=enrich_user(repo, created))
+    return success(request, enrich_user(repo, created))
 
 
 @router.get("/usuarios/{usuario_id}")
@@ -778,7 +806,7 @@ def get_user_by_id(
     user = repo.get("usuarios", usuario_id)
     if not user:
         not_found("Usuario")
-    return success(request, public_user(user))
+    return success(request, enrich_user(repo, user))
 
 
 @router.put("/usuarios/{usuario_id}")
@@ -799,8 +827,8 @@ def update_user(
     if "senha" in payload:
         payload["senha_hash"] = hash_password(payload.pop("senha"))
     updated = repo.update("usuarios", usuario_id, payload)
-    repo.audit(current_user["gabinete_id"], current_user["id"], "usuario", usuario_id, "UPDATE", public_user(previous), public_user(updated))
-    return success(request, public_user(updated))
+    repo.audit(current_user["gabinete_id"], current_user["id"], "usuario", usuario_id, "UPDATE", enrich_user(repo, previous), enrich_user(repo, updated))
+    return success(request, enrich_user(repo, updated))
 
 
 @router.patch("/usuarios/{usuario_id}/status")
@@ -2863,10 +2891,14 @@ def ai_build_suggestions(repo: JsonStore, context: dict[str, Any]) -> list[dict[
             suggestions.append(ai_action("Atribuir responsavel", "Sem dono interno, a fila tende a perder prazo e rastreabilidade.", "Definir responsavel", "focus-demand-assignee", "atendimento", context["id"]))
         if item.get("cidadao_id"):
             suggestions.append(ai_action("Abrir CRM do demandante", "Use o historico politico para qualificar abordagem e promessa de retorno.", "Abrir relacionamento", "open-contact", "crm", item.get("cidadao_id")))
+            if not item.get("cidadao_foto_url"):
+                suggestions.append(ai_action("Incluir foto do beneficiario", "Sem foto, a identificacao do perfil perde velocidade nas filas e no relacionamento politico.", "Editar cadastro", "focus-contact-edit", "cadastros", item.get("cidadao_id")))
         if item.get("status") in {"ABERTA", "EM_TRIAGEM", "REABERTA"}:
             suggestions.append(ai_action("Conduzir a proxima etapa", "A demanda ainda depende de definicao de andamento no fluxo de atendimento.", "Abrir fluxo", "open-demand", "atendimento", context["id"]))
         if not item.get("territorio_id") and not item.get("territorio_nome"):
             suggestions.append(ai_action("Associar territorio", "Sem territorio, o comando central perde leitura de base e cobertura territorial.", "Editar demanda", "focus-demand-edit", "atendimento", context["id"]))
+        if item.get("responsavel_usuario_id") and not item.get("responsavel_foto_url"):
+            suggestions.append(ai_action("Atualizar foto do responsavel", "A foto do colaborador melhora triagem visual, distribuicao e leitura das filas operacionais.", "Editar colaborador", "focus-user-edit", "cadastros", item.get("responsavel_usuario_id")))
         if item.get("tipo_demanda") == "INDICACAO_VAGA":
             if not item.get("cv_upload_id"):
                 suggestions.append(ai_action("Anexar curriculo", "A indicacao para vaga precisa do CV antes do envio para triagem externa.", "Editar demanda", "focus-demand-edit", "atendimento", context["id"]))
@@ -2881,6 +2913,8 @@ def ai_build_suggestions(repo: JsonStore, context: dict[str, Any]) -> list[dict[
             ai_action("Registrar nova interacao", "Movimente o relacionamento com um novo contato, retorno ou convite territorial.", "Abrir interacao", "focus-interaction-form", "crm", context["id"]),
             ai_action("Converter relacionamento em atendimento", "Quando ha demanda latente, o fluxo de atendimento deve sair do CRM e entrar na fila operacional.", "Abrir nova demanda", "focus-demand-create", "atendimento", context["id"]),
         ]
+        if not item.get("foto_url_publica"):
+            suggestions.append(ai_action("Incluir foto do perfil", "A foto e opcional, mas acelera a identificacao em bases grandes e melhora a leitura operacional.", "Editar cadastro", "focus-contact-edit", "cadastros", context["id"]))
         if not item.get("territorio_id") and not item.get("bairro"):
             suggestions.append(ai_action("Qualificar base territorial", "Sem territorio ou bairro, o contato perde valor estrategico para leitura de mapa.", "Editar cadastro", "focus-contact-edit", "cadastros", context["id"]))
         else:

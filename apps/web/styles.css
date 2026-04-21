@@ -1219,6 +1219,7 @@ legend {
   place-items: center;
   width: 72px;
   height: 72px;
+  overflow: hidden;
   border-radius: 22px;
   color: var(--white);
   background: linear-gradient(135deg, var(--navy-900) 0%, var(--blue) 100%);
@@ -1226,11 +1227,64 @@ legend {
   font-weight: 800;
 }
 
+.avatar-photo {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
 .avatar.small {
   width: 42px;
   height: 42px;
   border-radius: 14px;
   font-size: 14px;
+}
+
+.avatar.tiny {
+  width: 28px;
+  height: 28px;
+  border-radius: 10px;
+  font-size: 11px;
+}
+
+.photo-field-preview,
+.row-main,
+.demand-meta-line,
+.demand-person {
+  display: flex;
+}
+
+.photo-field-preview {
+  grid-column: 1 / -1;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.photo-preview {
+  width: 72px;
+  height: 72px;
+  border-radius: 22px;
+  object-fit: cover;
+  border: 1px solid var(--line);
+}
+
+.row-main {
+  align-items: center;
+  gap: 12px;
+}
+
+.demand-meta-line {
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  color: var(--ink-soft);
+  flex-wrap: wrap;
+}
+
+.demand-person {
+  align-items: center;
+  gap: 8px;
 }
 
 .tag-list {

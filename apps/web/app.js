@@ -154,6 +154,41 @@ function setMessage(selector, text) {
   if (el) el.textContent = text || "";
 }
 
+function setMediaLink(selector, url, fileName, defaultText = "Abrir arquivo atual") {
+  const link = $(selector);
+  if (!link) return;
+  if (!url) {
+    link.classList.add("hidden");
+    link.removeAttribute("href");
+    link.textContent = defaultText;
+    return;
+  }
+  link.href = url;
+  link.textContent = fileName ? `${defaultText.replace(" atual", "")}: ${fileName}` : defaultText;
+  link.classList.remove("hidden");
+}
+
+function setImagePreview(selector, url, altText = "Foto do perfil") {
+  const image = $(selector);
+  if (!image) return;
+  if (!url) {
+    image.classList.add("hidden");
+    image.removeAttribute("src");
+    image.alt = altText;
+    return;
+  }
+  image.src = url;
+  image.alt = altText;
+  image.classList.remove("hidden");
+}
+
+function previewLocalImage(file, imageSelector, linkSelector) {
+  if (!file) return;
+  const objectUrl = URL.createObjectURL(file);
+  setImagePreview(imageSelector, objectUrl, `Pre-visualizacao de ${file.name}`);
+  setMediaLink(linkSelector, objectUrl, file.name, "Abrir foto atual");
+}
+
 function buildQuery(params = {}) {
   const query = new URLSearchParams();
   Object.entries(params).forEach(([key, value]) => {
@@ -247,6 +282,14 @@ function initials(name) {
     .map((part) => part[0])
     .join("")
     .toUpperCase();
+}
+
+function avatarMarkup(name, url, className = "") {
+  const classes = ["avatar", ...String(className || "").split(/\s+/).filter(Boolean)];
+  if (url) {
+    return `<span class="${escapeHtml(classes.join(" "))}"><img class="avatar-photo" src="${escapeHtml(url)}" alt="Foto de ${escapeHtml(name || "perfil")}" loading="lazy" /></span>`;
+  }
+  return `<span class="${escapeHtml(classes.join(" "))}">${escapeHtml(initials(name))}</span>`;
 }
 
 function demandStatusLabel(status) {
@@ -394,17 +437,39 @@ function syncVacancyFields(form, mode) {
 }
 
 function setCvLink(selector, url, fileName) {
-  const link = $(selector);
-  if (!link) return;
-  if (!url) {
-    link.classList.add("hidden");
-    link.removeAttribute("href");
-    link.textContent = "Abrir CV atual";
-    return;
-  }
-  link.href = url;
-  link.textContent = fileName ? `Abrir CV: ${fileName}` : "Abrir CV atual";
-  link.classList.remove("hidden");
+  setMediaLink(selector, url, fileName, "Abrir CV atual");
+}
+
+function setProfilePhotoState(prefix, url, fileName, altText) {
+  setImagePreview(`#${prefix}-photo-preview`, url, altText);
+  setMediaLink(`#${prefix}-photo-link`, url, fileName, "Abrir foto atual");
+}
+
+function resetContactFormState() {
+  state.editingContactId = null;
+  const form = $("#contact-form");
+  if (!form) return;
+  form.reset();
+  if (form.elements.foto_upload_id) form.elements.foto_upload_id.value = "";
+  if (form.elements.foto_url) form.elements.foto_url.value = "";
+  $("#contact-submit").textContent = "Salvar cadastro";
+  setProfilePhotoState("contact", null, null, "Foto do cadastro");
+}
+
+function resetUserFormState() {
+  state.editingUserId = null;
+  const form = $("#user-form");
+  if (!form) return;
+  form.reset();
+  if (form.elements.foto_upload_id) form.elements.foto_upload_id.value = "";
+  if (form.elements.foto_url) form.elements.foto_url.value = "";
+  $("#user-submit").textContent = "Salvar colaborador";
+  setProfilePhotoState("user", null, null, "Foto do colaborador");
+}
+
+function demandSlaLabel(item) {
+  if (!item?.sla_data_calculada) return "Prazo a definir";
+  return `Prazo ${formatDate(item.sla_data_calculada)}`;
 }
 
 function compactAssistantLabel(label) {
@@ -827,9 +892,7 @@ function prefillContactForm({ territoryId = "", bairro = "", notes = "", relatio
   const form = $("#contact-form");
   if (!form) return;
   navigateCadastroTab("pessoas");
-  state.editingContactId = null;
-  form.reset();
-  $("#contact-submit").textContent = "Salvar cadastro";
+  resetContactFormState();
   renderTerritoryOptions();
   if (territoryId && form.elements.territorio_id) form.elements.territorio_id.value = territoryId;
   if (bairro && form.elements.bairro) form.elements.bairro.value = bairro;
@@ -903,6 +966,12 @@ function executeAssistantAction(action, section, entityId) {
     navigateTo("cadastros");
     startContactEdit(entityId);
     refreshAssistantContext({ contexto_tipo: "contato", contexto_id: entityId, modulo: "cadastros", origem: "ia" }, { force: true });
+    return;
+  }
+  if (action === "focus-user-edit" && entityId) {
+    navigateTo("cadastros");
+    startUserEdit(entityId);
+    refreshAssistantContext({ contexto_tipo: "modulo", modulo: "cadastros", origem: "ia" }, { force: true });
     return;
   }
   if (action === "focus-interaction-form" && entityId) {
@@ -2054,13 +2123,14 @@ function renderDemandCard(item) {
   return `
     <article class="demand-card${selected}" data-select-demand="${escapeHtml(item.id)}">
       <div class="demand-card-head">
-        <span class="avatar small">${escapeHtml(initials(item.cidadao_nome))}</span>
+        ${avatarMarkup(item.cidadao_nome, item.cidadao_foto_url, "small")}
         <div>
           <h3>${escapeHtml(item.titulo)}</h3>
           <p>${escapeHtml(item.cidadao_nome || "Demandante pendente")}</p>
         </div>
       </div>
       <p>${escapeHtml(item.tipo_demanda || "Nao classificada")} - ${escapeHtml(demandTerritory(item))}</p>
+      <p class="demand-meta-line"><span class="demand-person">${avatarMarkup(item.responsavel_nome || "Sem responsavel", item.responsavel_foto_url, "tiny")}<strong>${escapeHtml(item.responsavel_nome || "Sem responsavel")}</strong></span><span>${escapeHtml(demandSlaLabel(item))}</span></p>
       ${isVacancyDemand(item.tipo_demanda) ? `<p>Vaga: ${escapeHtml(labelCode(item.tipo_vaga_pretendida || "OUTROS"))}${item.vaga_outros_descricao ? ` - ${escapeHtml(item.vaga_outros_descricao)}` : ""}${item.cv_nome_arquivo ? ` - CV: ${escapeHtml(item.cv_nome_arquivo)}` : " - CV pendente"}</p>` : ""}
       <label class="compact-field">Responsavel
         <select data-demand-responsible="${escapeHtml(item.id)}">${userOptions(item.responsavel_usuario_id)}</select>
@@ -2086,11 +2156,14 @@ function renderDemandCard(item) {
 function renderDemandRow(item) {
   return `
     <article class="row demand-row" data-select-demand="${escapeHtml(item.id)}">
-      <div>
-        <h3>${escapeHtml(item.titulo)}</h3>
+      <div class="row-main">
+        ${avatarMarkup(item.cidadao_nome, item.cidadao_foto_url, "small")}
+        <div>
+          <h3>${escapeHtml(item.titulo)}</h3>
         <p>Demandante: ${escapeHtml(item.cidadao_nome || "Pendente de regularizacao")} - Tipo: ${escapeHtml(item.tipo_demanda || "Nao classificada")}</p>
         ${isVacancyDemand(item.tipo_demanda) ? `<p>Vaga: ${escapeHtml(labelCode(item.tipo_vaga_pretendida || "OUTROS"))}${item.vaga_outros_descricao ? ` - ${escapeHtml(item.vaga_outros_descricao)}` : ""}</p>` : ""}
-        <p>Territorio: ${escapeHtml(demandTerritory(item))} - Responsavel: ${escapeHtml(item.responsavel_nome || "Sem responsavel")}</p>
+          <p>Territorio: ${escapeHtml(demandTerritory(item))} - Responsavel: ${escapeHtml(item.responsavel_nome || "Sem responsavel")} - ${escapeHtml(demandSlaLabel(item))}</p>
+        </div>
       </div>
       <span class="status ${statusClass(item.status)}">${escapeHtml(demandStatusLabel(item.status))}</span>
     </article>
@@ -2129,11 +2202,14 @@ function renderContacts() {
   const people = state.contacts.filter((item) => item.tipo_contato !== "ORGAO_PUBLICO" && !["EXCLUIDO", "INATIVO"].includes(item.status) && matches(item));
   const publicBodies = state.contacts.filter((item) => item.tipo_contato === "ORGAO_PUBLICO" && !["EXCLUIDO", "INATIVO"].includes(item.status) && matches(item));
   const renderContactCard = (item) => `
-    <article class="row" data-crm-open="${escapeHtml(item.id)}">
-      <div>
-        <h3>${escapeHtml(item.nome)}</h3>
-        <p>${escapeHtml(item.telefone_principal || "Sem telefone")} - ${escapeHtml(item.bairro || item.territorio_nome || "Sem bairro")}</p>
-        <p>Perfil: ${escapeHtml(item.nivel_relacionamento || "CONTATO")} - Engajamento: ${escapeHtml(item.engajamento || "FRIO")} - Voto 2028: ${escapeHtml(item.voto_2028 || "INDEFINIDO")}</p>
+    <article class="row profile-row" data-crm-open="${escapeHtml(item.id)}">
+      <div class="row-main">
+        ${avatarMarkup(item.nome, item.foto_url_publica, "small")}
+        <div>
+          <h3>${escapeHtml(item.nome)}</h3>
+          <p>${escapeHtml(item.telefone_principal || "Sem telefone")} - ${escapeHtml(item.bairro || item.territorio_nome || "Sem bairro")}</p>
+          <p>Perfil: ${escapeHtml(item.nivel_relacionamento || "CONTATO")} - Engajamento: ${escapeHtml(item.engajamento || "FRIO")} - Voto 2028: ${escapeHtml(item.voto_2028 || "INDEFINIDO")}</p>
+        </div>
       </div>
       <div class="row-actions">
         <button type="button" class="secondary" data-edit-contact="${escapeHtml(item.id)}">Editar</button>
@@ -2234,6 +2310,9 @@ function startContactEdit(contactId) {
   form.elements.influencia.value = contact.influencia || "BAIXA";
   form.elements.voto_2028.value = contact.voto_2028 || "INDEFINIDO";
   form.elements.prioridade_politica.value = contact.prioridade_politica || "MEDIA";
+  if (form.elements.foto_upload_id) form.elements.foto_upload_id.value = contact.foto_upload_id || "";
+  if (form.elements.foto_url) form.elements.foto_url.value = contact.foto_url_publica || contact.foto_url || "";
+  setProfilePhotoState("contact", contact.foto_url_publica || contact.foto_url, contact.foto_nome_arquivo, `Foto de ${contact.nome || "contato"}`);
   $("#contact-submit").textContent = "Salvar alteracoes";
   form.scrollIntoView({ behavior: "smooth", block: "start" });
 }
@@ -2286,7 +2365,7 @@ function renderCRM() {
   const whatsapp = phone ? `https://wa.me/55${phone}` : "#";
   $("#crm-profile").innerHTML = `
     <div class="profile-hero">
-      <div class="avatar">${escapeHtml(initials(contact.nome))}</div>
+      ${avatarMarkup(contact.nome, contact.foto_url_publica)}
       <div>
         <h3>${escapeHtml(contact.nome)}</h3>
         <p>${escapeHtml(contact.bairro || contact.territorio_nome || "Sem bairro")} - ${escapeHtml(contact.telefone_principal || "Sem telefone")}</p>
@@ -2384,10 +2463,13 @@ function renderUsers() {
     state.users
       .map(
         (item) => `
-          <article class="row">
-            <div>
-              <h3>${escapeHtml(item.nome)}</h3>
-              <p>${escapeHtml(item.email_login)} - ${escapeHtml(item.perfil)} - ${item.ativo ? "Ativo" : "Inativo"}</p>
+          <article class="row profile-row">
+            <div class="row-main">
+              ${avatarMarkup(item.nome, item.foto_url_publica, "small")}
+              <div>
+                <h3>${escapeHtml(item.nome)}</h3>
+                <p>${escapeHtml(item.email_login)} - ${escapeHtml(item.perfil)} - ${item.ativo ? "Ativo" : "Inativo"}</p>
+              </div>
             </div>
             <div class="row-actions">
               <button type="button" class="secondary" data-edit-user="${escapeHtml(item.id)}">Editar</button>
@@ -2419,6 +2501,9 @@ function startUserEdit(userId) {
   form.elements.email_login.value = user.email_login || "";
   form.elements.telefone.value = user.telefone || "";
   form.elements.perfil.value = user.perfil || "COLABORADOR_EXTERNO";
+  if (form.elements.foto_upload_id) form.elements.foto_upload_id.value = user.foto_upload_id || "";
+  if (form.elements.foto_url) form.elements.foto_url.value = user.foto_url_publica || user.foto_url || "";
+  setProfilePhotoState("user", user.foto_url_publica || user.foto_url, user.foto_nome_arquivo, `Foto de ${user.nome || "colaborador"}`);
   $("#user-submit").textContent = "Salvar alteracoes";
   form.scrollIntoView({ behavior: "smooth", block: "start" });
 }
@@ -2902,13 +2987,20 @@ async function createContact(event) {
   }
   if (!data.territorio_id) delete data.territorio_id;
   try {
+    const uploaded = await uploadProfilePhoto(form.elements.foto_file?.files?.[0], state.editingContactId || data.nome || "contato");
+    if (uploaded) {
+      data.foto_upload_id = uploaded.id;
+      data.foto_url = uploaded.url_publica || uploaded.url_storage;
+    } else if (!data.foto_upload_id) {
+      delete data.foto_upload_id;
+      delete data.foto_url;
+    }
+    delete data.foto_file;
     const endpoint = state.editingContactId ? `/contatos/${state.editingContactId}` : "/contatos";
     const method = state.editingContactId ? "PUT" : "POST";
     const saved = await api(endpoint, { method, body: JSON.stringify(data) });
     state.selectedContactId = saved.data.id;
-    state.editingContactId = null;
-    form.reset();
-    $("#contact-submit").textContent = "Salvar cadastro";
+    resetContactFormState();
     setMessage("#contact-message", "Cadastro salvo.");
     await loadData();
   } catch (error) {
@@ -3030,6 +3122,8 @@ async function ensureDemandanteContact(value) {
     engajamento: user.perfil === "VEREADOR" ? "FORTE" : "MEDIO",
     voto_2028: user.perfil === "VEREADOR" ? "VOTO_CERTO" : "NAO_APLICA",
     prioridade_politica: user.perfil === "VEREADOR" ? "ALTA" : "MEDIA",
+    foto_upload_id: user.foto_upload_id || null,
+    foto_url: user.foto_url_publica || user.foto_url || null,
     observacoes: `Demandante interno espelhado automaticamente do usuario ${user.perfil}.`,
   };
   const saved = await api("/contatos", { method: "POST", body: JSON.stringify(payload) });
@@ -3126,6 +3220,15 @@ async function uploadDemandFile(file, reference) {
   return uploaded.data;
 }
 
+async function uploadProfilePhoto(file, reference) {
+  if (!file) return null;
+  const body = new FormData();
+  body.append("file", file);
+  body.append("contexto", `perfil-foto:${reference}`);
+  const uploaded = await api("/uploads", { method: "POST", body });
+  return uploaded.data;
+}
+
 async function saveAgendaReport(event) {
   event.preventDefault();
   const form = event.currentTarget;
@@ -3165,12 +3268,19 @@ async function createUser(event) {
   const data = Object.fromEntries(new FormData(form).entries());
   data.ativo = true;
   try {
+    const uploaded = await uploadProfilePhoto(form.elements.foto_file?.files?.[0], state.editingUserId || data.nome || "usuario");
+    if (uploaded) {
+      data.foto_upload_id = uploaded.id;
+      data.foto_url = uploaded.url_publica || uploaded.url_storage;
+    } else if (!data.foto_upload_id) {
+      delete data.foto_upload_id;
+      delete data.foto_url;
+    }
+    delete data.foto_file;
     const endpoint = state.editingUserId ? `/usuarios/${state.editingUserId}` : "/usuarios";
     const method = state.editingUserId ? "PUT" : "POST";
     await api(endpoint, { method, body: JSON.stringify(data) });
-    state.editingUserId = null;
-    form.reset();
-    $("#user-submit").textContent = "Salvar colaborador";
+    resetUserFormState();
     setMessage("#user-message", method === "POST" ? "Colaborador salvo. Senha inicial: Senha@123." : "Colaborador atualizado.");
     await loadData();
   } catch (error) {
@@ -3377,6 +3487,12 @@ function bindEvents() {
     if (event.target.matches("[data-sentiment-filter]")) {
       onSentimentFilterChange(event).catch(console.error);
     }
+    if (event.target.matches('#contact-form input[name="foto_file"]')) {
+      previewLocalImage(event.target.files?.[0], "#contact-photo-preview", "#contact-photo-link");
+    }
+    if (event.target.matches('#user-form input[name="foto_file"]')) {
+      previewLocalImage(event.target.files?.[0], "#user-photo-preview", "#user-photo-link");
+    }
     if (event.target.matches('#demand-form select[name="tipo_demanda"], #demand-form select[name="tipo_vaga_pretendida"]')) {
       syncVacancyFields($("#demand-form"), "create");
     }
@@ -3402,6 +3518,8 @@ function bindEvents() {
     updateMobileBackButton();
   });
   bindNavigation();
+  resetContactFormState();
+  resetUserFormState();
   syncVacancyFields($("#demand-form"), "create");
   syncVacancyFields($("#demand-edit-form"), "edit");
   updateMobileBackButton();
