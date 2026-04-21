@@ -228,6 +228,40 @@ def ensure_amendment_model(state: dict[str, list[dict[str, Any]]]) -> bool:
     return changed
 
 
+def ensure_upload_public_paths(state: dict[str, list[dict[str, Any]]]) -> bool:
+    changed = False
+    uploads = state.get("uploads", [])
+    upload_by_id = {item.get("id"): item for item in uploads if item.get("id")}
+
+    for item in uploads:
+        name = item.get("nome_storage") or Path(str(item.get("url_storage") or "")).name
+        expected_public_url = f"/uploads-public/{name}" if name else None
+        if expected_public_url and item.get("url_publica") != expected_public_url:
+            item["url_publica"] = expected_public_url
+            changed = True
+
+    for collection_name in ("contatos", "usuarios"):
+        for item in state.get(collection_name, []):
+            upload = upload_by_id.get(item.get("foto_upload_id")) if item.get("foto_upload_id") else None
+            expected = upload.get("url_publica") if upload else None
+            if not expected and item.get("foto_url"):
+                expected = f"/uploads-public/{Path(str(item.get('foto_url'))).name}"
+            if expected and item.get("foto_url") != expected:
+                item["foto_url"] = expected
+                changed = True
+
+    for item in state.get("demandas", []):
+        upload = upload_by_id.get(item.get("cv_upload_id")) if item.get("cv_upload_id") else None
+        expected = upload.get("url_publica") if upload else None
+        if not expected and item.get("cv_url"):
+            expected = f"/uploads-public/{Path(str(item.get('cv_url'))).name}"
+        if expected and item.get("cv_url") != expected:
+            item["cv_url"] = expected
+            changed = True
+
+    return changed
+
+
 def seed_state() -> dict[str, list[dict[str, Any]]]:
     now = iso_now()
     return {
@@ -652,6 +686,8 @@ class JsonStore:
             if ensure_default_regional_territories(self.state):
                 changed = True
             if ensure_amendment_model(self.state):
+                changed = True
+            if ensure_upload_public_paths(self.state):
                 changed = True
             if changed:
                 self.save()
