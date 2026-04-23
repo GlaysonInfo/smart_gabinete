@@ -35,6 +35,7 @@ Depois abra:
 ```text
 http://127.0.0.1:8010/app/
 http://127.0.0.1:8010/mobile/
+http://127.0.0.1:8010/mandato/
 http://127.0.0.1:8010/docs
 ```
 
@@ -46,13 +47,15 @@ O script sobe a API em `0.0.0.0`, entao ela fica acessivel na sua rede local.
 2. Inicie a API com `./scripts/run_api.ps1`.
 3. No navegador do celular, abra `http://SEU_IP:8010/app/` para o sistema de gestao.
 4. No navegador do celular, abra `http://SEU_IP:8010/mobile/` para o app mobile.
-5. Se nao abrir, libere a porta `8010` no Firewall do Windows para redes privadas.
+5. No navegador do celular, abra `http://SEU_IP:8010/mandato/` para o app executivo do vereador.
+6. Se nao abrir, libere a porta `8010` no Firewall do Windows para redes privadas.
 
 Exemplo:
 
 ```text
 http://192.168.0.15:8010/app/
 http://192.168.0.15:8010/mobile/
+http://192.168.0.15:8010/mandato/
 ```
 
 ## Publicacao
@@ -108,6 +111,7 @@ Depois do deploy, use:
 ```text
 https://SEU-SERVICO.onrender.com/app/
 https://SEU-SERVICO.onrender.com/mobile/
+https://SEU-SERVICO.onrender.com/mandato/
 https://SEU-SERVICO.onrender.com/docs
 ```
 

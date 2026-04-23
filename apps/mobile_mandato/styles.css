@@ -1,0 +1,981 @@
+:root {
+  --navy: #112743;
+  --ocean: #1e5f74;
+  --teal: #2d8f85;
+  --sand: #f3ede2;
+  --paper: #fcfaf6;
+  --ink: #1d2430;
+  --muted: #64707f;
+  --line: #d8d4c8;
+  --soft: #edf3f1;
+  --warm: #f8efe0;
+  --success: #1f8a5b;
+  --warning: #c6861a;
+  --danger: #b64949;
+  --shadow: 0 18px 40px rgb(17 39 67 / 0.14);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  background:
+    radial-gradient(circle at top right, rgb(45 143 133 / 0.22), transparent 28%),
+    radial-gradient(circle at top left, rgb(243 237 226 / 0.9), transparent 32%),
+    #f2f0ea;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  color: var(--ink);
+  background: transparent;
+  font-family: "Segoe UI", Arial, sans-serif;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button {
+  min-height: 46px;
+  border: 0;
+  border-radius: 16px;
+  padding: 0 16px;
+  color: #fff;
+  background: linear-gradient(180deg, var(--ocean) 0%, var(--navy) 100%);
+  font-weight: 800;
+  cursor: pointer;
+}
+
+button.secondary {
+  color: var(--navy);
+  background: rgb(255 255 255 / 0.82);
+  border: 1px solid rgb(17 39 67 / 0.08);
+}
+
+input,
+select,
+textarea {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 14px;
+  color: var(--ink);
+  background: #fff;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  outline: 2px solid rgb(30 95 116 / 0.16);
+  border-color: var(--ocean);
+}
+
+textarea {
+  min-height: 104px;
+  resize: vertical;
+}
+
+.hidden {
+  display: none !important;
+}
+
+.eyebrow {
+  margin: 0 0 6px;
+  color: var(--ocean);
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.message {
+  min-height: 20px;
+  margin: 0;
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.message.error {
+  color: var(--danger);
+}
+
+.mandato-app {
+  width: min(100%, 520px);
+  min-height: 100vh;
+  margin: 0 auto;
+}
+
+.login-shell,
+.app-shell {
+  min-height: 100vh;
+}
+
+.login-shell {
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+
+.login-card {
+  width: 100%;
+  padding: 28px;
+  border: 1px solid rgb(17 39 67 / 0.08);
+  border-radius: 28px;
+  background:
+    linear-gradient(180deg, rgb(255 255 255 / 0.95) 0%, rgb(252 250 246 / 0.98) 100%),
+    var(--paper);
+  box-shadow: var(--shadow);
+}
+
+.login-card h1,
+.hero-copy h1 {
+  margin: 0;
+  font-size: 36px;
+  line-height: 1;
+}
+
+.intro,
+.hero-summary {
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.login-form {
+  display: grid;
+  gap: 14px;
+  margin-top: 22px;
+}
+
+.login-form label {
+  display: grid;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.app-shell {
+  display: grid;
+  gap: 16px;
+  padding: 16px;
+}
+
+.mobile-nav {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.mobile-nav button {
+  color: var(--navy);
+  background: rgb(255 255 255 / 0.72);
+  border: 1px solid rgb(17 39 67 / 0.08);
+}
+
+.mobile-nav button.active {
+  color: #fff;
+  background: linear-gradient(180deg, var(--ocean) 0%, var(--navy) 100%);
+}
+
+.mobile-breadcrumb {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.breadcrumb-item {
+  min-height: 34px;
+  padding: 0 12px;
+  border-radius: 999px;
+  color: var(--navy);
+  background: rgb(255 255 255 / 0.78);
+  border: 1px solid rgb(17 39 67 / 0.08);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.breadcrumb-item.active {
+  color: #fff;
+  background: linear-gradient(180deg, var(--ocean) 0%, var(--navy) 100%);
+}
+
+.breadcrumb-separator {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.app-view-panel {
+  display: none;
+  gap: 16px;
+}
+
+.app-view-panel.active {
+  display: grid;
+}
+
+.hero-shell {
+  display: grid;
+  gap: 16px;
+  padding: 22px;
+  border-radius: 28px;
+  color: #fff;
+  background:
+    radial-gradient(circle at top right, rgb(255 255 255 / 0.18), transparent 24%),
+    linear-gradient(140deg, #0f2746 0%, #1e5f74 54%, #2d8f85 100%);
+  box-shadow: var(--shadow);
+}
+
+.hero-shell .eyebrow,
+.hero-shell .hero-summary {
+  color: rgb(255 255 255 / 0.84);
+}
+
+.hero-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 10px;
+}
+
+.chip,
+.sync-label,
+.pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 42px;
+  border-radius: 16px;
+  padding: 0 14px;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.chip {
+  color: var(--navy);
+  background: rgb(255 255 255 / 0.84);
+}
+
+.sync-label {
+  color: var(--ocean);
+  background: var(--soft);
+}
+
+.thermometer-grid,
+.kpi-grid,
+.two-column-grid {
+  display: grid;
+  gap: 12px;
+}
+
+.thermometer-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.thermometer-card,
+.surface,
+.kpi-card,
+.territory-card,
+.stack-card,
+.relationship-card {
+  border: 1px solid rgb(17 39 67 / 0.08);
+  border-radius: 24px;
+  background: rgb(255 255 255 / 0.92);
+  box-shadow: 0 10px 24px rgb(17 39 67 / 0.06);
+}
+
+.thermometer-card {
+  padding: 18px;
+  background: linear-gradient(180deg, rgb(255 255 255 / 0.96) 0%, rgb(243 237 226 / 0.92) 100%);
+}
+
+.thermometer-visual,
+.sentiment-visual {
+  margin-top: 12px;
+}
+
+.thermometer-visual {
+  display: grid;
+  place-items: center;
+}
+
+.thermometer-ring {
+  width: 108px;
+  height: 108px;
+}
+
+.thermometer-track,
+.thermometer-progress {
+  fill: none;
+  stroke-width: 11;
+}
+
+.thermometer-track {
+  stroke: rgb(255 255 255 / 0.18);
+}
+
+.thermometer-progress {
+  stroke: #9fe3da;
+  stroke-linecap: round;
+  transform: rotate(-90deg);
+  transform-origin: 60px 60px;
+}
+
+.thermometer-core {
+  fill: rgb(255 255 255 / 0.1);
+}
+
+.thermometer-center-value {
+  fill: #fff;
+  font-size: 30px;
+  font-weight: 900;
+}
+
+.thermometer-center-label {
+  fill: rgb(255 255 255 / 0.72);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.sentiment-visual {
+  display: grid;
+  gap: 8px;
+}
+
+.sentiment-bar-row {
+  display: grid;
+  grid-template-columns: 58px 1fr 42px;
+  align-items: center;
+  gap: 8px;
+}
+
+.sentiment-bar-row span,
+.sentiment-bar-row strong {
+  font-size: 12px;
+  font-weight: 900;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.sentiment-bar-track {
+  position: relative;
+  height: 10px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgb(17 39 67 / 0.08);
+}
+
+.sentiment-bar-fill {
+  height: 100%;
+  border-radius: inherit;
+}
+
+.sentiment-bar-fill.success {
+  background: linear-gradient(90deg, #3ec28b 0%, #1f8a5b 100%);
+}
+
+.sentiment-bar-fill.neutral {
+  background: linear-gradient(90deg, #77a8df 0%, #3f78bf 100%);
+}
+
+.sentiment-bar-fill.danger {
+  background: linear-gradient(90deg, #ef8a79 0%, #b64949 100%);
+}
+
+.thermometer-card.emphasis {
+  color: #fff;
+  background: linear-gradient(180deg, #1e5f74 0%, #112743 100%);
+}
+
+.thermometer-card span,
+.kpi-card span,
+.territory-card span,
+.stack-card small,
+.relationship-card span {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.thermometer-card.emphasis span,
+.thermometer-card.emphasis p,
+.thermometer-card.emphasis strong {
+  color: #fff;
+}
+
+.thermometer-card strong,
+.kpi-card strong,
+.territory-card strong,
+.stack-card strong,
+.relationship-card strong {
+  display: block;
+  margin-top: 8px;
+  font-size: 28px;
+  line-height: 1;
+}
+
+.thermometer-card p,
+.kpi-card p,
+.territory-card p,
+.stack-card p,
+.relationship-card p {
+  margin: 10px 0 0;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.surface {
+  padding: 18px;
+}
+
+.section-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.section-head h2 {
+  margin: 0;
+  font-size: 24px;
+  line-height: 1.05;
+}
+
+.section-head h3 {
+  margin: 0;
+  font-size: 18px;
+  line-height: 1.1;
+}
+
+.section-head > span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+  text-align: right;
+}
+
+.kpi-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.kpi-card,
+.territory-card,
+.stack-card,
+.relationship-card {
+  padding: 16px;
+}
+
+.actionable {
+  cursor: pointer;
+  transition: transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease;
+}
+
+.actionable:hover,
+.actionable:focus-visible {
+  transform: translateY(-2px);
+  border-color: rgb(30 95 116 / 0.28);
+  box-shadow: 0 16px 30px rgb(17 39 67 / 0.1);
+}
+
+.detail-surface {
+  background: linear-gradient(180deg, rgb(255 255 255 / 0.98) 0%, rgb(243 237 226 / 0.9) 100%);
+}
+
+.detail-summary {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.detail-list .stack-card {
+  background: rgb(252 250 246 / 0.92);
+}
+
+.detail-grid {
+  display: grid;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.nested-surface {
+  padding: 14px;
+  background: rgb(255 255 255 / 0.78);
+}
+
+.single-action-row {
+  grid-template-columns: 1fr;
+}
+
+.context-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.button-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 46px;
+  border-radius: 16px;
+  padding: 0 16px;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.button-link.secondary {
+  color: var(--navy);
+  background: rgb(255 255 255 / 0.82);
+  border: 1px solid rgb(17 39 67 / 0.08);
+}
+
+.kpi-card .pill,
+.territory-card .pill,
+.stack-card .pill {
+  margin-top: 12px;
+}
+
+.pill.success {
+  color: var(--success);
+  background: rgb(31 138 91 / 0.1);
+}
+
+.pill.warning {
+  color: var(--warning);
+  background: rgb(198 134 26 / 0.12);
+}
+
+.pill.danger {
+  color: var(--danger);
+  background: rgb(182 73 73 / 0.12);
+}
+
+.pill.neutral {
+  color: var(--ocean);
+  background: rgb(30 95 116 / 0.1);
+}
+
+.territory-grid,
+.stack-list,
+.relationship-panel,
+.quick-action-grid,
+.action-form {
+  display: grid;
+  gap: 12px;
+}
+
+.geo-map-stage {
+  margin-top: 14px;
+}
+
+.geo-map-canvas {
+  position: relative;
+  min-height: 280px;
+  overflow: hidden;
+  border: 1px solid rgb(17 39 67 / 0.08);
+  border-radius: 24px;
+  background: linear-gradient(180deg, rgb(234 244 242 / 0.96) 0%, rgb(250 244 232 / 0.96) 100%);
+}
+
+.geo-map-backdrop {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 20% 24%, rgb(30 95 116 / 0.12), transparent 15%),
+    radial-gradient(circle at 72% 28%, rgb(45 143 133 / 0.16), transparent 18%),
+    radial-gradient(circle at 40% 64%, rgb(198 134 26 / 0.12), transparent 18%),
+    linear-gradient(135deg, rgb(17 39 67 / 0.06) 12%, transparent 12%, transparent 50%, rgb(17 39 67 / 0.04) 50%, rgb(17 39 67 / 0.04) 54%, transparent 54%);
+}
+
+.geo-map-node {
+  position: absolute;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  min-height: 22px;
+  padding: 0;
+  border-radius: 999px;
+  transform: translate(-50%, -50%);
+  box-shadow: 0 0 0 8px rgb(255 255 255 / 0.18);
+}
+
+.geo-map-node.success {
+  background: linear-gradient(180deg, #3ec28b 0%, #1f8a5b 100%);
+}
+
+.geo-map-node.warning {
+  background: linear-gradient(180deg, #efbc60 0%, #c6861a 100%);
+}
+
+.geo-map-node.danger {
+  background: linear-gradient(180deg, #ef8a79 0%, #b64949 100%);
+}
+
+.geo-map-node.neutral {
+  background: linear-gradient(180deg, #7eb1e1 0%, #1e5f74 100%);
+}
+
+.geo-map-node.active {
+  width: 26px;
+  height: 26px;
+  box-shadow: 0 0 0 10px rgb(255 255 255 / 0.28);
+}
+
+.geo-map-node-pulse {
+  position: absolute;
+  inset: -8px;
+  border-radius: 999px;
+  border: 1px solid rgb(17 39 67 / 0.16);
+  animation: geoPulse 1.9s ease-out infinite;
+}
+
+.geo-map-node-label {
+  position: absolute;
+  top: calc(100% + 10px);
+  left: 50%;
+  min-width: 96px;
+  padding: 6px 9px;
+  border-radius: 999px;
+  color: var(--navy);
+  background: rgb(255 255 255 / 0.88);
+  border: 1px solid rgb(17 39 67 / 0.08);
+  transform: translateX(-50%);
+  font-size: 11px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.geo-map-overlay-card {
+  position: absolute;
+  right: 14px;
+  bottom: 14px;
+  width: min(240px, calc(100% - 28px));
+  padding: 14px;
+  border-radius: 20px;
+  background: rgb(255 255 255 / 0.86);
+  border: 1px solid rgb(17 39 67 / 0.08);
+  backdrop-filter: blur(12px);
+}
+
+.geo-map-overlay-card strong {
+  display: block;
+  margin: 0 0 6px;
+  font-size: 18px;
+}
+
+.geo-map-overlay-card p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+@keyframes geoPulse {
+  0% {
+    opacity: 0.8;
+    transform: scale(0.82);
+  }
+
+  100% {
+    opacity: 0;
+    transform: scale(1.35);
+  }
+}
+
+.filter-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.filter-grid label {
+  display: grid;
+  gap: 8px;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.filter-reset {
+  align-self: end;
+}
+
+.quick-action-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.compact-head {
+  margin-bottom: 0;
+}
+
+.action-form label {
+  display: grid;
+  gap: 8px;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.action-form button {
+  margin-top: 4px;
+}
+
+.demand-edit-form {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid rgb(17 39 67 / 0.08);
+}
+
+.inline-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.stack-card.selected {
+  border-color: rgb(30 95 116 / 0.36);
+  box-shadow: 0 0 0 2px rgb(30 95 116 / 0.1);
+}
+
+.stack-card .row-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 12px;
+}
+
+.stack-card .row-actions button {
+  min-height: 34px;
+  padding: 0 12px;
+}
+
+.territory-card {
+  background: linear-gradient(180deg, rgb(255 255 255 / 0.98) 0%, rgb(237 243 241 / 0.92) 100%);
+}
+
+.territory-meta,
+.stack-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.meta-tag {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  border-radius: 999px;
+  padding: 0 10px;
+  color: var(--navy);
+  background: var(--warm);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.stack-card strong,
+.relationship-card strong {
+  font-size: 20px;
+}
+
+.stack-card p.tight {
+  margin-top: 6px;
+}
+
+.stack-card header,
+.relationship-card header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.two-column-grid {
+  grid-template-columns: 1fr;
+}
+
+@media (max-width: 520px) {
+  .hero-actions,
+  .thermometer-grid,
+  .kpi-grid,
+  .quick-action-grid,
+  .filter-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .inline-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .context-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .section-head {
+    display: grid;
+  }
+
+  .geo-map-canvas {
+    min-height: 320px;
+    padding-bottom: 132px;
+  }
+
+  .geo-map-node-label {
+    display: none;
+    min-width: 0;
+    max-width: 120px;
+    white-space: normal;
+    text-align: center;
+  }
+
+  .geo-map-node.active .geo-map-node-label {
+    display: block;
+  }
+
+  .geo-map-overlay-card {
+    left: 12px;
+    right: 12px;
+    bottom: 12px;
+    width: auto;
+  }
+
+  .sentiment-bar-row {
+    grid-template-columns: 52px 1fr 38px;
+    gap: 6px;
+  }
+}
+
+@media (max-width: 430px) {
+  .app-shell {
+    gap: 14px;
+    padding: 12px;
+  }
+
+  .hero-shell,
+  .login-card,
+  .surface,
+  .thermometer-card,
+  .kpi-card,
+  .territory-card,
+  .stack-card,
+  .relationship-card {
+    padding: 16px;
+    border-radius: 22px;
+  }
+
+  .mobile-breadcrumb {
+    gap: 6px;
+  }
+
+  .breadcrumb-item {
+    min-height: 32px;
+    padding: 0 10px;
+    font-size: 11px;
+  }
+
+  .thermometer-ring {
+    width: 96px;
+    height: 96px;
+  }
+
+  .thermometer-center-value {
+    font-size: 26px;
+  }
+
+  .thermometer-card strong,
+  .kpi-card strong,
+  .territory-card strong,
+  .stack-card strong,
+  .relationship-card strong {
+    font-size: 24px;
+  }
+
+  .section-head h2 {
+    font-size: 22px;
+  }
+}
+
+@media (max-width: 390px) {
+  .app-shell,
+  .login-shell {
+    padding: 10px;
+  }
+
+  .hero-shell,
+  .login-card,
+  .surface,
+  .thermometer-card,
+  .kpi-card,
+  .territory-card,
+  .stack-card,
+  .relationship-card {
+    padding: 14px;
+  }
+
+  .mobile-nav {
+    gap: 8px;
+  }
+
+  .thermometer-ring {
+    width: 88px;
+    height: 88px;
+  }
+
+  .thermometer-center-value {
+    font-size: 24px;
+  }
+
+  .geo-map-canvas {
+    min-height: 300px;
+    padding-bottom: 144px;
+  }
+
+  .geo-map-overlay-card {
+    padding: 12px;
+    border-radius: 18px;
+  }
+}
+
+@media (min-width: 780px) {
+  .mandato-app {
+    width: min(100%, 1180px);
+    padding: 24px;
+  }
+
+  .app-shell {
+    gap: 18px;
+    padding: 0;
+  }
+
+  .two-column-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .detail-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .territory-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .kpi-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .quick-action-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

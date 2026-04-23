@@ -73,6 +73,10 @@ mobile_dir = settings.root_dir / "apps" / "mobile"
 if mobile_dir.exists():
     app.mount("/mobile", StaticFiles(directory=str(mobile_dir), html=True), name="mobile")
 
+mandato_dir = settings.root_dir / "apps" / "mobile_mandato"
+if mandato_dir.exists():
+    app.mount("/mandato", StaticFiles(directory=str(mandato_dir), html=True), name="mandato")
+
 images_dir = settings.root_dir / "imagens"
 if images_dir.exists():
     app.mount("/imagens", StaticFiles(directory=str(images_dir)), name="images")

@@ -1,0 +1,517 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Gestao de Mandato</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="mandato-app">
+      <section id="login-view" class="login-shell">
+        <div class="login-card">
+          <p class="eyebrow">App Mobile do Vereador</p>
+          <h1>Gestao de Mandato</h1>
+          <p class="intro">
+            Na palma da mao, o vereador acompanha pressao territorial, demandas, relacionamento politico,
+            produtividade da equipe e sinais do mandato em tempo real.
+          </p>
+          <form id="login-form" class="login-form">
+            <label>
+              E-mail
+              <input name="email_login" type="email" value="chefe@gabineteia.local" autocomplete="username" />
+            </label>
+            <label>
+              Senha
+              <input name="senha" type="password" value="Senha@123" autocomplete="current-password" />
+            </label>
+            <button type="submit">Entrar no painel</button>
+            <p id="login-message" class="message"></p>
+          </form>
+        </div>
+      </section>
+
+      <section id="app-view" class="app-shell hidden">
+        <header class="hero-shell">
+          <div class="hero-copy">
+            <p class="eyebrow">Gestao de Mandato</p>
+            <h1>Painel do vereador</h1>
+            <p id="hero-summary" class="hero-summary">Carregando visao executiva...</p>
+          </div>
+          <div class="hero-actions">
+            <span id="user-chip" class="chip">Sem sessao</span>
+            <button id="refresh" type="button" class="secondary">Atualizar</button>
+            <button id="logout" type="button" class="secondary">Sair</button>
+          </div>
+        </header>
+
+        <nav class="mobile-nav" aria-label="Modos do app">
+          <button type="button" class="active" data-view="executivo">Painel</button>
+          <button type="button" data-view="operacional">Operacoes</button>
+        </nav>
+
+        <div id="mobile-breadcrumb" class="mobile-breadcrumb" aria-label="Historico de navegacao"></div>
+
+        <section id="view-executivo" class="app-view-panel active">
+          <section class="thermometer-grid">
+            <article class="thermometer-card emphasis">
+              <span>Termometro do mandato</span>
+              <div id="thermometer-visual" class="thermometer-visual"></div>
+              <strong id="thermometer-score">0</strong>
+              <p id="thermometer-label">Sem leitura</p>
+            </article>
+            <article class="thermometer-card">
+              <span>Pressao territorial</span>
+              <strong id="pressure-focus">Sem foco</strong>
+              <p id="pressure-copy">Aguardando dados territoriais.</p>
+            </article>
+            <article class="thermometer-card">
+              <span>Sentimento publico</span>
+              <div id="sentiment-visual" class="sentiment-visual"></div>
+              <strong id="sentiment-score">0%</strong>
+              <p id="sentiment-copy">Sem amostras agregadas.</p>
+            </article>
+          </section>
+
+          <section class="surface">
+            <div class="section-head">
+              <div>
+                <p class="eyebrow">Radar gerencial</p>
+                <h2>Resumo executivo</h2>
+              </div>
+              <span id="last-sync" class="sync-label">Sem atualizacao</span>
+            </div>
+            <div id="kpi-grid" class="kpi-grid"></div>
+          </section>
+
+          <section id="executive-detail" class="surface detail-surface hidden">
+            <div class="section-head">
+              <div>
+                <p class="eyebrow">Leitura contextual</p>
+                <h2 id="detail-title">Sem foco selecionado</h2>
+              </div>
+              <span id="detail-chip" class="sync-label">Toque em um dado</span>
+            </div>
+            <p id="detail-summary" class="detail-summary">Selecione um indicador, equipe, territorio ou registro para abrir os detalhes.</p>
+            <div id="detail-meta" class="stack-meta"></div>
+            <div id="detail-list" class="stack-list detail-list"></div>
+            <div class="context-actions">
+              <button id="detail-primary-action" type="button">Abrir contexto</button>
+              <a id="detail-web-link" class="button-link secondary" href="/app/" target="_blank" rel="noreferrer">Abrir sistema principal</a>
+            </div>
+          </section>
+
+          <section class="surface">
+            <div class="section-head">
+              <div>
+                <p class="eyebrow">Territorio</p>
+                <h2>Pressao por regional</h2>
+              </div>
+              <span>Demandas, base e liderancas</span>
+            </div>
+            <div id="territory-grid" class="territory-grid"></div>
+          </section>
+
+          <section class="surface">
+            <div class="section-head">
+              <div>
+                <p class="eyebrow">Mapa georreferenciado</p>
+                <h2>Base territorial pronta para mapa</h2>
+              </div>
+              <span id="geo-map-summary">Preparando leitura georreferenciada</span>
+            </div>
+            <p id="geo-map-copy" class="detail-summary">Esta camada deixa o app pronto para abrir demandas e cadastros a partir de um mapa com clique por area.</p>
+            <div id="geo-map-stage" class="geo-map-stage"></div>
+            <div class="context-actions">
+              <button id="geo-map-open-demands" type="button">Ver demandas da area</button>
+              <button id="geo-map-open-territory" type="button" class="secondary">Abrir leitura territorial</button>
+            </div>
+          </section>
+
+          <section class="two-column-grid">
+            <section class="surface">
+              <div class="section-head">
+                <div>
+                  <p class="eyebrow">Atendimento</p>
+                  <h2>Dashboard de demandas</h2>
+                </div>
+                <span id="demand-summary">Fila em analise</span>
+              </div>
+              <div id="demand-focus" class="stack-list"></div>
+            </section>
+
+            <section class="surface">
+              <div class="section-head">
+                <div>
+                  <p class="eyebrow">Relacionamento</p>
+                  <h2>Base politica e cidada</h2>
+                </div>
+                <span id="relationship-summary">Sem dados</span>
+              </div>
+              <div id="relationship-panel" class="relationship-panel"></div>
+            </section>
+          </section>
+
+          <section class="two-column-grid">
+            <section class="surface">
+              <div class="section-head">
+                <div>
+                  <p class="eyebrow">Cadastro</p>
+                  <h2>Cidadaos priorizados</h2>
+                </div>
+                <span id="citizen-summary">Sem registros</span>
+              </div>
+              <div id="citizen-list" class="stack-list"></div>
+            </section>
+
+            <section class="surface">
+              <div class="section-head">
+                <div>
+                  <p class="eyebrow">Equipe</p>
+                  <h2>Colaboradores e performance</h2>
+                </div>
+                <span id="team-summary">Sem equipe</span>
+              </div>
+              <div id="team-list" class="stack-list"></div>
+            </section>
+          </section>
+        </section>
+
+        <section id="view-operacional" class="app-view-panel">
+          <section class="surface">
+            <div class="section-head">
+              <div>
+                <p class="eyebrow">Central de acoes</p>
+                <h2>Operacoes do parlamentar</h2>
+              </div>
+              <span id="operations-summary">Acoes rapidas para rua, agenda e gabinete</span>
+            </div>
+            <div class="quick-action-grid">
+              <button type="button" class="secondary quick-nav" data-focus-target="quick-contact-form">Novo cidadao</button>
+              <button type="button" class="secondary quick-nav" data-focus-target="quick-demand-form">Nova demanda</button>
+              <button type="button" class="secondary quick-nav" data-focus-target="quick-agenda-form">Nova agenda</button>
+              <button type="button" class="secondary quick-nav" data-focus-target="quick-interaction-form">Registrar interacao</button>
+            </div>
+          </section>
+
+          <section class="two-column-grid">
+            <section class="surface">
+              <div class="section-head">
+                <div>
+                  <p class="eyebrow">Cadastro rapido</p>
+                  <h2>Novo cidadao</h2>
+                </div>
+              </div>
+              <form id="quick-contact-form" class="action-form">
+                <label>Nome completo
+                  <input name="nome" required />
+                </label>
+                <label>Telefone
+                  <input name="telefone_principal" />
+                </label>
+                <label>Bairro
+                  <input name="bairro" />
+                </label>
+                <label>Territorio
+                  <select name="territorio_id" id="quick-contact-territory"></select>
+                </label>
+                <button type="submit">Salvar cidadao</button>
+                <p id="quick-contact-message" class="message"></p>
+              </form>
+            </section>
+
+            <section class="surface">
+              <div class="section-head">
+                <div>
+                  <p class="eyebrow">Atendimento rapido</p>
+                  <h2>Nova demanda</h2>
+                </div>
+              </div>
+              <form id="quick-demand-form" class="action-form">
+                <label>Demandante
+                  <select name="cidadao_id" id="quick-demand-contact" required></select>
+                </label>
+                <label>Titulo
+                  <input name="titulo" required />
+                </label>
+                <label>Descricao
+                  <textarea name="descricao" required></textarea>
+                </label>
+                <label>Prioridade
+                  <select name="prioridade">
+                    <option value="BAIXA">Baixa</option>
+                    <option value="MEDIA" selected>Media</option>
+                    <option value="ALTA">Alta</option>
+                    <option value="CRITICA">Critica</option>
+                  </select>
+                </label>
+                <label>Responsavel
+                  <select name="responsavel_usuario_id" id="quick-demand-user"></select>
+                </label>
+                <button type="submit">Abrir demanda</button>
+                <p id="quick-demand-message" class="message"></p>
+              </form>
+            </section>
+          </section>
+
+          <section class="two-column-grid">
+            <section class="surface">
+              <div class="section-head">
+                <div>
+                  <p class="eyebrow">Agenda</p>
+                  <h2>Novo compromisso</h2>
+                </div>
+              </div>
+              <form id="quick-agenda-form" class="action-form">
+                <label>Titulo
+                  <input name="titulo" required />
+                </label>
+                <label>Inicio
+                  <input name="data_inicio" type="datetime-local" required />
+                </label>
+                <label>Fim
+                  <input name="data_fim" type="datetime-local" required />
+                </label>
+                <label>Local
+                  <input name="local_texto" />
+                </label>
+                <label>Tipo
+                  <select name="tipo_agenda">
+                    <option value="REUNIAO_BASE">Reuniao da Base</option>
+                    <option value="VISITA_BAIRRO">Visita de Bairro</option>
+                    <option value="AGENDA_LIDERANCAS">Agenda com Liderancas</option>
+                    <option value="ATENDIMENTO_COMUNITARIO">Atendimento Comunitario</option>
+                  </select>
+                </label>
+                <button type="submit">Registrar agenda</button>
+                <p id="quick-agenda-message" class="message"></p>
+              </form>
+            </section>
+
+            <section class="surface">
+              <div class="section-head">
+                <div>
+                  <p class="eyebrow">Relacionamento</p>
+                  <h2>Nova interacao</h2>
+                </div>
+              </div>
+              <form id="quick-interaction-form" class="action-form">
+                <label>Contato
+                  <select name="cidadao_id" id="quick-interaction-contact" required></select>
+                </label>
+                <label>Tipo
+                  <select name="tipo_interacao">
+                    <option value="ATENDIMENTO">Atendimento</option>
+                    <option value="REUNIAO_BASE">Reuniao da Base</option>
+                    <option value="VISITA_BAIRRO">Visita de Bairro</option>
+                    <option value="MOBILIZACAO">Mobilizacao</option>
+                  </select>
+                </label>
+                <label>Assunto
+                  <input name="assunto" required />
+                </label>
+                <label>Descricao
+                  <textarea name="descricao_detalhada"></textarea>
+                </label>
+                <button type="submit">Registrar interacao</button>
+                <p id="quick-interaction-message" class="message"></p>
+              </form>
+            </section>
+          </section>
+
+          <section class="two-column-grid">
+            <section class="surface">
+              <div class="section-head">
+                <div>
+                  <p class="eyebrow">Fila viva</p>
+                  <h2>Demandas recentes</h2>
+                </div>
+                <span id="recent-demand-summary">Sem demandas</span>
+              </div>
+              <div class="filter-grid">
+                <label>Status
+                  <select id="demand-filter-status">
+                    <option value="">Todos</option>
+                    <option value="ABERTA">Nova</option>
+                    <option value="EM_TRIAGEM">Triagem</option>
+                    <option value="EM_ATENDIMENTO">Em instrucao</option>
+                    <option value="ENCAMINHADA">Encaminhada</option>
+                    <option value="AGUARDANDO_RETORNO">Aguardando orgao</option>
+                    <option value="CONCLUIDA">Concluida</option>
+                    <option value="REABERTA">Reaberta</option>
+                    <option value="ARQUIVADA">Arquivada</option>
+                  </select>
+                </label>
+                <label>Prioridade
+                  <select id="demand-filter-priority">
+                    <option value="">Todas</option>
+                    <option value="BAIXA">Baixa</option>
+                    <option value="MEDIA">Media</option>
+                    <option value="ALTA">Alta</option>
+                    <option value="CRITICA">Critica</option>
+                  </select>
+                </label>
+                <label>Responsavel
+                  <select id="demand-filter-user">
+                    <option value="">Todos</option>
+                  </select>
+                </label>
+                <button type="button" id="clear-demand-filters" class="secondary filter-reset">Limpar filtros</button>
+              </div>
+              <div id="recent-demand-list" class="stack-list"></div>
+              <form id="demand-edit-form" class="action-form demand-edit-form">
+                <div class="section-head compact-head">
+                  <div>
+                    <p class="eyebrow">Edicao rapida</p>
+                    <h3 id="demand-edit-title">Selecione uma demanda</h3>
+                  </div>
+                  <span id="demand-edit-status" class="sync-label">Sem selecao</span>
+                </div>
+                <input type="hidden" name="demanda_id" />
+                <label>Titulo
+                  <input name="titulo" required />
+                </label>
+                <label>Descricao
+                  <textarea name="descricao" required></textarea>
+                </label>
+                <label>Prioridade
+                  <select name="prioridade">
+                    <option value="BAIXA">Baixa</option>
+                    <option value="MEDIA">Media</option>
+                    <option value="ALTA">Alta</option>
+                    <option value="CRITICA">Critica</option>
+                  </select>
+                </label>
+                <label>Responsavel
+                  <select name="responsavel_usuario_id" id="quick-edit-demand-user"></select>
+                </label>
+                <button type="submit">Salvar ajustes</button>
+                <div class="inline-actions">
+                  <button type="button" class="secondary" data-demand-transition="assumir">Assumir</button>
+                  <button type="button" class="secondary" data-demand-transition="concluir">Concluir</button>
+                  <button type="button" class="secondary" data-demand-transition="reabrir">Reabrir</button>
+                  <button type="button" class="secondary" data-demand-transition="arquivar">Arquivar</button>
+                </div>
+                <p id="demand-edit-message" class="message"></p>
+              </form>
+            </section>
+
+            <section class="surface">
+              <div class="section-head">
+                <div>
+                  <p class="eyebrow">Agenda viva</p>
+                  <h2>Compromissos do vereador</h2>
+                </div>
+                <span id="recent-agenda-summary">Sem agenda</span>
+              </div>
+              <div id="recent-agenda-list" class="stack-list"></div>
+            </section>
+          </section>
+        </section>
+
+        <section id="view-lista" class="app-view-panel">
+          <section class="surface">
+            <div class="section-head">
+              <div>
+                <p id="context-list-eyebrow" class="eyebrow">Leitura filtrada</p>
+                <h2 id="context-list-title">Lista contextual</h2>
+              </div>
+              <button type="button" class="secondary" data-return-view="executivo">Voltar</button>
+            </div>
+            <p id="context-list-summary" class="detail-summary">Abra um indicador do painel para ver a lista correspondente.</p>
+            <div id="context-list-meta" class="stack-meta"></div>
+            <div id="context-list-content" class="stack-list detail-list"></div>
+            <div class="context-actions">
+              <button id="context-list-primary-action" type="button">Abrir contexto</button>
+              <a id="context-list-web-link" class="button-link secondary" href="/app/" target="_blank" rel="noreferrer">Abrir sistema principal</a>
+            </div>
+          </section>
+        </section>
+
+        <section id="view-territorio" class="app-view-panel">
+          <section class="surface detail-surface">
+            <div class="section-head">
+              <div>
+                <p class="eyebrow">Territorio</p>
+                <h2 id="territory-detail-title">Sem territorio selecionado</h2>
+              </div>
+              <button type="button" class="secondary" data-return-view="executivo">Voltar</button>
+            </div>
+            <p id="territory-detail-summary" class="detail-summary">Abra uma regional ou bairro no painel para ver a composicao territorial.</p>
+            <div id="territory-detail-meta" class="stack-meta"></div>
+            <div class="detail-grid">
+              <section class="surface nested-surface">
+                <div class="section-head compact-head">
+                  <div>
+                    <p class="eyebrow">Demandas</p>
+                    <h3>Fila local</h3>
+                  </div>
+                </div>
+                <div id="territory-demand-list" class="stack-list detail-list"></div>
+              </section>
+              <section class="surface nested-surface">
+                <div class="section-head compact-head">
+                  <div>
+                    <p class="eyebrow">Base</p>
+                    <h3>Cadastros e liderancas</h3>
+                  </div>
+                </div>
+                <div id="territory-contact-list" class="stack-list detail-list"></div>
+              </section>
+            </div>
+            <div class="context-actions">
+              <button id="territory-open-demands" type="button">Abrir demandas do territorio</button>
+              <button id="territory-open-contacts" type="button" class="secondary">Abrir cadastros do territorio</button>
+            </div>
+            <div class="context-actions single-action-row">
+              <a id="territory-web-link" class="button-link secondary" href="/app/" target="_blank" rel="noreferrer">Abrir no sistema principal</a>
+            </div>
+          </section>
+        </section>
+
+        <section id="view-equipe" class="app-view-panel">
+          <section class="surface detail-surface">
+            <div class="section-head">
+              <div>
+                <p class="eyebrow">Equipe</p>
+                <h2 id="team-detail-title">Sem equipe selecionada</h2>
+              </div>
+              <button type="button" class="secondary" data-return-view="executivo">Voltar</button>
+            </div>
+            <p id="team-detail-summary" class="detail-summary">Abra uma equipe no painel para ver cobertura territorial e produtividade detalhada.</p>
+            <div id="team-detail-meta" class="stack-meta"></div>
+            <div class="detail-grid">
+              <section class="surface nested-surface">
+                <div class="section-head compact-head">
+                  <div>
+                    <p class="eyebrow">Membros</p>
+                    <h3>Equipe ativa</h3>
+                  </div>
+                </div>
+                <div id="team-member-list" class="stack-list detail-list"></div>
+              </section>
+              <section class="surface nested-surface">
+                <div class="section-head compact-head">
+                  <div>
+                    <p class="eyebrow">Entrega</p>
+                    <h3>Cadastros e demandas</h3>
+                  </div>
+                </div>
+                <div id="team-output-list" class="stack-list detail-list"></div>
+              </section>
+            </div>
+            <div class="context-actions">
+              <button id="team-open-demands" type="button">Abrir demandas da equipe</button>
+              <button id="team-open-contacts" type="button" class="secondary">Abrir cadastros da equipe</button>
+            </div>
+            <div class="context-actions single-action-row">
+              <a id="team-web-link" class="button-link secondary" href="/app/" target="_blank" rel="noreferrer">Abrir no sistema principal</a>
+            </div>
+          </section>
+        </section>
+      </section>
+    </main>
+
+    <script src="./app.js"></script>
+  </body>
+</html>

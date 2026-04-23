@@ -262,6 +262,80 @@ def ensure_upload_public_paths(state: dict[str, list[dict[str, Any]]]) -> bool:
     return changed
 
 
+def ensure_team_tracking_fields(state: dict[str, list[dict[str, Any]]]) -> bool:
+    changed = False
+    now = iso_now()
+    users = state.get("usuarios", [])
+    teams = state.get("equipes", [])
+    users_by_id = {item.get("id"): item for item in users if item.get("id")}
+
+    def territory_scope_ids(scopes: list[dict[str, Any]] | None) -> set[str]:
+        ids = set()
+        for scope in scopes or []:
+            if scope.get("escopo_tipo") == "TERRITORIO" and scope.get("territorio_id"):
+                ids.add(scope["territorio_id"])
+        return ids
+
+    team_scope_ids: dict[str, set[str]] = {}
+    for team in teams:
+        scope_ids = territory_scope_ids(team.get("escopos"))
+        member_scope_ids = set()
+        for user in users:
+            if user.get("equipe_id") == team.get("id"):
+                member_scope_ids.update(territory_scope_ids(user.get("escopos")))
+        if not team.get("escopos") and member_scope_ids:
+            team["escopos"] = [
+                {"id": new_id(), "escopo_tipo": "TERRITORIO", "territorio_id": territory_id}
+                for territory_id in sorted(member_scope_ids)
+            ]
+            team["updated_at"] = now
+            changed = True
+            scope_ids = set(member_scope_ids)
+        team_scope_ids[str(team.get("id"))] = scope_ids or member_scope_ids
+
+    for contact in state.get("contatos", []):
+        team_id = contact.get("equipe_id")
+        creator_id = contact.get("cadastrado_por_usuario_id")
+        if not team_id and creator_id and users_by_id.get(creator_id, {}).get("equipe_id"):
+            contact["equipe_id"] = users_by_id[creator_id]["equipe_id"]
+            contact["updated_at"] = now
+            team_id = contact["equipe_id"]
+            changed = True
+        if not team_id and contact.get("territorio_id"):
+            matching_teams = [
+                team.get("id")
+                for team in teams
+                if contact.get("territorio_id") in team_scope_ids.get(str(team.get("id")), set())
+            ]
+            if len(matching_teams) == 1:
+                contact["equipe_id"] = matching_teams[0]
+                contact["updated_at"] = now
+                changed = True
+
+    contacts_by_id = {item.get("id"): item for item in state.get("contatos", []) if item.get("id")}
+    for demand in state.get("demandas", []):
+        team_id = demand.get("equipe_id")
+        creator_id = demand.get("gerada_por_usuario_id")
+        if not creator_id and demand.get("responsavel_usuario_id"):
+            demand["gerada_por_usuario_id"] = demand.get("responsavel_usuario_id")
+            demand["updated_at"] = now
+            creator_id = demand["gerada_por_usuario_id"]
+            changed = True
+        if not team_id and creator_id and users_by_id.get(creator_id, {}).get("equipe_id"):
+            demand["equipe_id"] = users_by_id[creator_id]["equipe_id"]
+            demand["updated_at"] = now
+            team_id = demand["equipe_id"]
+            changed = True
+        if not team_id:
+            linked_contact = contacts_by_id.get(demand.get("cidadao_id")) if demand.get("cidadao_id") else None
+            if linked_contact and linked_contact.get("equipe_id"):
+                demand["equipe_id"] = linked_contact["equipe_id"]
+                demand["updated_at"] = now
+                changed = True
+
+    return changed
+
+
 def seed_state() -> dict[str, list[dict[str, Any]]]:
     now = iso_now()
     return {
@@ -283,6 +357,7 @@ def seed_state() -> dict[str, list[dict[str, Any]]]:
                 "nome": "Equipe Centro",
                 "descricao": "Equipe territorial do centro",
                 "supervisor_usuario_id": ASSESSOR_ID,
+                "escopos": [{"id": new_id(), "escopo_tipo": "TERRITORIO", "territorio_id": BAIRRO_ID}],
                 "ativo": True,
                 "created_at": now,
                 "updated_at": now,
@@ -351,6 +426,8 @@ def seed_state() -> dict[str, list[dict[str, Any]]]:
                 "voto_2028": "INDEFINIDO",
                 "prioridade_politica": "MEDIA",
                 "origem_politica": "DECLARADO",
+                "equipe_id": TEAM_ID,
+                "cadastrado_por_usuario_id": ASSESSOR_ID,
                 "observacoes": "Contato inicial de demonstracao",
                 "created_at": now,
                 "updated_at": now,
@@ -390,6 +467,8 @@ def seed_state() -> dict[str, list[dict[str, Any]]]:
                 "prioridade": "ALTA",
                 "status": "EM_TRIAGEM",
                 "responsavel_usuario_id": None,
+                "equipe_id": TEAM_ID,
+                "gerada_por_usuario_id": ASSESSOR_ID,
                 "origem_cadastro": "WEB_INTERNO",
                 "sla_data": None,
                 "data_abertura": now,
@@ -688,6 +767,8 @@ class JsonStore:
             if ensure_amendment_model(self.state):
                 changed = True
             if ensure_upload_public_paths(self.state):
+                changed = True
+            if ensure_team_tracking_fields(self.state):
                 changed = True
             if changed:
                 self.save()

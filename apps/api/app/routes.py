@@ -258,7 +258,10 @@ def enrich_contact(repo: JsonStore, item: dict[str, Any]) -> dict[str, Any]:
     photo_upload = repo.get("uploads", enriched.get("foto_upload_id")) if enriched.get("foto_upload_id") else None
     linked_user = repo.get("usuarios", enriched.get("usuario_id")) if enriched.get("usuario_id") else None
     user_photo_upload = repo.get("uploads", linked_user.get("foto_upload_id")) if linked_user and linked_user.get("foto_upload_id") else None
+    linked_team = repo.get("equipes", enriched.get("equipe_id")) if enriched.get("equipe_id") else None
     enriched["territorio_nome"] = territory_name(repo, enriched.get("territorio_id"))
+    enriched["equipe_nome"] = linked_team.get("nome") if linked_team else None
+    enriched["cadastrado_por_nome"] = user_name(repo, enriched.get("cadastrado_por_usuario_id"))
     enriched["foto_url_publica"] = upload_public_url(photo_upload) or normalize_public_asset_url(enriched.get("foto_url")) or upload_public_url(user_photo_upload)
     enriched["foto_nome_arquivo"] = (
         photo_upload.get("nome_original")
@@ -283,6 +286,7 @@ def enrich_demand(repo: JsonStore, item: dict[str, Any]) -> dict[str, Any]:
     contact = repo.get("contatos", enriched.get("cidadao_id")) if enriched.get("cidadao_id") else None
     responsible = repo.get("usuarios", enriched.get("responsavel_usuario_id")) if enriched.get("responsavel_usuario_id") else None
     cv_upload = repo.get("uploads", enriched.get("cv_upload_id")) if enriched.get("cv_upload_id") else None
+    linked_team = repo.get("equipes", enriched.get("equipe_id")) if enriched.get("equipe_id") else None
     enriched["territorio_nome"] = territory_name(repo, enriched.get("territorio_id"))
     if not enriched["territorio_nome"] and contact:
         enriched["territorio_nome"] = territory_name(repo, contact.get("territorio_id")) or contact.get("bairro")
@@ -291,6 +295,8 @@ def enrich_demand(repo: JsonStore, item: dict[str, Any]) -> dict[str, Any]:
     enriched["cidadao_telefone"] = contact.get("telefone_principal") if contact else None
     enriched["categoria_nome"] = category_name(repo, enriched.get("categoria_id"))
     enriched["responsavel_nome"] = user_name(repo, enriched.get("responsavel_usuario_id"))
+    enriched["equipe_nome"] = linked_team.get("nome") if linked_team else None
+    enriched["gerada_por_nome"] = user_name(repo, enriched.get("gerada_por_usuario_id"))
     enriched["cidadao_foto_url"] = enrich_contact(repo, contact).get("foto_url_publica") if contact else None
     enriched["responsavel_foto_url"] = enrich_user(repo, responsible).get("foto_url_publica") if responsible else None
     if cv_upload:
@@ -323,6 +329,88 @@ def enrich_interaction(repo: JsonStore, item: dict[str, Any]) -> dict[str, Any]:
         demand = repo.get("demandas", enriched.get("demanda_id"))
         enriched["demanda_titulo"] = demand.get("titulo") if demand else None
     enriched["responsavel_nome"] = user_name(repo, enriched.get("responsavel_usuario_id"))
+    return enriched
+
+
+def contact_completeness_score(item: dict[str, Any]) -> float:
+    checkpoints = [
+        bool(item.get("nome")),
+        bool(item.get("telefone_principal")),
+        bool(item.get("email")),
+        bool(item.get("territorio_id") or item.get("bairro")),
+        bool(item.get("logradouro")),
+        bool(item.get("nivel_relacionamento")),
+        bool(item.get("engajamento")),
+        bool(item.get("voto_2028")),
+    ]
+    return sum(1 for checkpoint in checkpoints if checkpoint) / len(checkpoints)
+
+
+def contact_engagement_score(item: dict[str, Any]) -> int:
+    mapping = {
+        "FRIO": 25,
+        "MORNO": 45,
+        "MEDIO": 70,
+        "ALTO": 90,
+        "FORTE": 100,
+    }
+    return mapping.get(str(item.get("engajamento") or "FRIO").upper(), 25)
+
+
+def team_territory_ids(team: dict[str, Any], members: list[dict[str, Any]]) -> set[str]:
+    ids = {
+        scope.get("territorio_id")
+        for scope in team.get("escopos", [])
+        if scope.get("escopo_tipo") == "TERRITORIO" and scope.get("territorio_id")
+    }
+    for member in members:
+        ids.update(
+            scope.get("territorio_id")
+            for scope in member.get("escopos", [])
+            if scope.get("escopo_tipo") == "TERRITORIO" and scope.get("territorio_id")
+        )
+    return {item for item in ids if item}
+
+
+def team_productivity_snapshot(repo: JsonStore, team: dict[str, Any]) -> dict[str, Any]:
+    members = [item for item in repo.all("usuarios") if item.get("equipe_id") == team.get("id") and item.get("ativo", True)]
+    member_ids = {item.get("id") for item in members if item.get("id")}
+    territory_ids = team_territory_ids(team, members)
+    contacts = [
+        enrich_contact(repo, item)
+        for item in repo.all("contatos")
+        if item.get("status") != "EXCLUIDO"
+        and (item.get("equipe_id") == team.get("id") or item.get("cadastrado_por_usuario_id") in member_ids)
+    ]
+    demands = [
+        enrich_demand(repo, item)
+        for item in repo.all("demandas")
+        if item.get("status") != "EXCLUIDO"
+        and (item.get("equipe_id") == team.get("id") or item.get("gerada_por_usuario_id") in member_ids)
+    ]
+    completeness = round((sum(contact_completeness_score(item) for item in contacts) / len(contacts)) * 100, 1) if contacts else 0.0
+    engagement = round(sum(contact_engagement_score(item) for item in contacts) / len(contacts), 1) if contacts else 0.0
+    strong_engagement = len([item for item in contacts if str(item.get("engajamento") or "").upper() in {"FORTE", "ALTO"}])
+    qualified = len([item for item in contacts if contact_completeness_score(item) >= 0.75])
+    open_demands = len([item for item in demands if item.get("status") in {"ABERTA", "EM_TRIAGEM", "EM_ATENDIMENTO", "ENCAMINHADA", "AGUARDANDO_RETORNO", "REABERTA"}])
+    return {
+        "membros_ativos": len(members),
+        "territorios_ids": sorted(territory_ids),
+        "territorios_nomes": [territory_name(repo, territory_id) or territory_id for territory_id in sorted(territory_ids)],
+        "cadastros": len(contacts),
+        "demandas": len(demands),
+        "demandas_abertas": open_demands,
+        "cadastros_qualificados": qualified,
+        "completude_media": completeness,
+        "engajamento_medio": engagement,
+        "engajamento_forte": strong_engagement,
+    }
+
+
+def enrich_team(repo: JsonStore, item: dict[str, Any]) -> dict[str, Any]:
+    enriched = dict(item)
+    enriched["supervisor_nome"] = user_name(repo, enriched.get("supervisor_usuario_id"))
+    enriched["produtividade"] = team_productivity_snapshot(repo, enriched)
     return enriched
 
 
@@ -893,7 +981,7 @@ def list_teams(
 ):
     return success(
         request,
-        list_response(request, "equipes", repo, locals().copy(), ("nome", "descricao"))["data"],
+        [enrich_team(repo, item) for item in list_response(request, "equipes", repo, locals().copy(), ("nome", "descricao"))["data"]],
     )
 
 
@@ -905,10 +993,12 @@ def create_team(
     repo: JsonStore = Depends(get_store),
 ):
     require_fields(payload, ("nome",))
+    if payload.get("supervisor_usuario_id") and not repo.get("usuarios", payload["supervisor_usuario_id"]):
+        business_rule("supervisor_usuario_id invalido para equipe.")
     item = {**payload, "gabinete_id": current_user["gabinete_id"], "ativo": payload.get("ativo", True)}
     created = repo.create("equipes", item)
     repo.audit(current_user["gabinete_id"], current_user["id"], "equipe", created["id"], "CREATE", payload_novo=created)
-    return success(request, created)
+    return success(request, enrich_team(repo, created))
 
 
 @router.get("/equipes/{equipe_id}")
@@ -921,7 +1011,7 @@ def get_team_by_id(
     team = repo.get("equipes", equipe_id)
     if not team:
         not_found("Equipe")
-    return success(request, team)
+    return success(request, enrich_team(repo, team))
 
 
 @router.put("/equipes/{equipe_id}")
@@ -935,9 +1025,11 @@ def update_team(
     previous = repo.get("equipes", equipe_id)
     if not previous:
         not_found("Equipe")
+    if payload.get("supervisor_usuario_id") and not repo.get("usuarios", payload["supervisor_usuario_id"]):
+        business_rule("supervisor_usuario_id invalido para equipe.")
     updated = repo.update("equipes", equipe_id, payload)
     repo.audit(current_user["gabinete_id"], current_user["id"], "equipe", equipe_id, "UPDATE", previous, updated)
-    return success(request, updated)
+    return success(request, enrich_team(repo, updated))
 
 
 @router.get("/auditoria")
@@ -1081,6 +1173,8 @@ def create_contact(
         conflict("CPF ja cadastrado.")
     if payload.get("territorio_id") and not repo.get("territorios", payload["territorio_id"]):
         business_rule("territorio_id invalido para contato.")
+    if payload.get("equipe_id") and not repo.get("equipes", payload["equipe_id"]):
+        business_rule("equipe_id invalido para contato.")
     phone = payload.get("telefone_principal")
     name = payload.get("nome", "").strip().lower()
     duplicate = any(
@@ -1091,6 +1185,8 @@ def create_contact(
         **payload,
         "gabinete_id": current_user["gabinete_id"],
         "origem_cadastro": payload.get("origem_cadastro", "WEB_INTERNO"),
+        "equipe_id": payload.get("equipe_id") or current_user.get("equipe_id"),
+        "cadastrado_por_usuario_id": payload.get("cadastrado_por_usuario_id") or current_user["id"],
         "tipo_contato": payload.get("tipo_contato", "CIDADAO"),
         "status": "DUPLICIDADE_SUSPEITA" if duplicate else payload.get("status", "ATIVO"),
         "duplicidade_suspeita": duplicate,
@@ -1152,6 +1248,8 @@ def update_contact(
             conflict("CPF ja cadastrado.")
     if payload.get("territorio_id") and not repo.get("territorios", payload["territorio_id"]):
         business_rule("territorio_id invalido para contato.")
+    if payload.get("equipe_id") and not repo.get("equipes", payload["equipe_id"]):
+        business_rule("equipe_id invalido para contato.")
     updated = repo.update("contatos", contato_id, payload)
     repo.audit(current_user["gabinete_id"], current_user["id"], "contato", contato_id, "UPDATE", previous, updated)
     return success(request, enrich_contact(repo, updated))
@@ -1266,6 +1364,8 @@ def create_demand(
         business_rule("Toda demanda deve estar vinculada a um demandante cadastrado.")
     if payload.get("territorio_id") and not repo.get("territorios", payload["territorio_id"]):
         business_rule("territorio_id invalido para demanda.")
+    if payload.get("equipe_id") and not repo.get("equipes", payload["equipe_id"]):
+        business_rule("equipe_id invalido para demanda.")
     if payload.get("responsavel_usuario_id") and not repo.get("usuarios", payload["responsavel_usuario_id"]):
         business_rule("responsavel_usuario_id invalido para demanda.")
     opened_at = iso_now()
@@ -1278,6 +1378,8 @@ def create_demand(
         "status": payload.get("status", "ABERTA"),
         "prioridade": payload.get("prioridade", "MEDIA"),
         "origem_cadastro": payload.get("origem_cadastro", "WEB_INTERNO"),
+        "equipe_id": payload.get("equipe_id") or current_user.get("equipe_id") or contact.get("equipe_id"),
+        "gerada_por_usuario_id": payload.get("gerada_por_usuario_id") or current_user["id"],
         "responsavel_usuario_id": payload.get("responsavel_usuario_id") or current_user["id"],
         "sla_data": payload.get("sla_data") or (opened_at_dt + timedelta(hours=sla_hours_by_priority(payload.get("prioridade", "MEDIA"), sla_config))).isoformat(),
         "data_abertura": opened_at,
@@ -1324,6 +1426,8 @@ def update_demand(
     patch = dict(payload)
     if patch.get("territorio_id") and not repo.get("territorios", patch["territorio_id"]):
         business_rule("territorio_id invalido para demanda.")
+    if patch.get("equipe_id") and not repo.get("equipes", patch["equipe_id"]):
+        business_rule("equipe_id invalido para demanda.")
     if patch.get("responsavel_usuario_id") and not repo.get("usuarios", patch["responsavel_usuario_id"]):
         business_rule("responsavel_usuario_id invalido para demanda.")
     if patch.get("status") == "CONCLUIDA" and not patch.get("data_conclusao"):
@@ -2092,6 +2196,15 @@ def political_os_overview(
             "historico_mensal": aggregate_sla_history(sla_history),
         },
         "heatmap": heatmap[:8],
+        "equipes_produtividade": [
+            enrich_team(repo, team)
+            for team in sorted(
+                repo.all("equipes"),
+                key=lambda entry: team_productivity_snapshot(repo, entry).get("cadastros", 0)
+                + team_productivity_snapshot(repo, entry).get("demandas", 0),
+                reverse=True,
+            )[:6]
+        ],
         "sentimento": sentiment_snapshot,
         "emendas": amendment_totals,
         "legislativo": [{"etapa": key, "quantidade": value} for key, value in kanban.items()],
@@ -2436,6 +2549,8 @@ def mobile_sync(
                     {
                         **body,
                         "gabinete_id": current_user["gabinete_id"],
+                        "equipe_id": body.get("equipe_id") or current_user.get("equipe_id"),
+                        "cadastrado_por_usuario_id": body.get("cadastrado_por_usuario_id") or current_user["id"],
                         "origem_cadastro": body.get("origem_cadastro", "MOBILE_CAMPO"),
                         "status": body.get("status", "ATIVO"),
                         "duplicidade_suspeita": False,
@@ -2452,6 +2567,8 @@ def mobile_sync(
                     {
                         **body,
                         "gabinete_id": current_user["gabinete_id"],
+                        "equipe_id": body.get("equipe_id") or current_user.get("equipe_id") or repo.get("contatos", body["cidadao_id"]).get("equipe_id"),
+                        "gerada_por_usuario_id": body.get("gerada_por_usuario_id") or current_user["id"],
                         "origem_cadastro": body.get("origem_cadastro", "MOBILE_CAMPO"),
                         "status": body.get("status", "ABERTA"),
                         "prioridade": body.get("prioridade", "MEDIA"),

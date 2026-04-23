@@ -92,6 +92,11 @@ const state = {
     periodo: "",
     territorio: "",
   },
+  moduleContext: {
+    atendimento: null,
+    crm: null,
+    agenda: null,
+  },
 };
 
 const $ = (selector) => document.querySelector(selector);
@@ -223,6 +228,137 @@ function buildQuery(params = {}) {
   });
   const rendered = query.toString();
   return rendered ? `?${rendered}` : "";
+}
+
+function requestedContextFromUrl() {
+  const params = new URLSearchParams(window.location.search);
+  return {
+    section: params.get("section") || "",
+    focus: params.get("focus") || "",
+    demandId: params.get("demanda_id") || "",
+    contactId: params.get("contato_id") || "",
+    territoryId: params.get("territorio_id") || "",
+    teamId: params.get("equipe_id") || "",
+    userId: params.get("usuario_id") || "",
+  };
+}
+
+function contextMetaList(context, fallback = []) {
+  return [...(context?.meta || []), ...fallback].filter(Boolean);
+}
+
+function setModuleContext(moduleId, context) {
+  if (!state.moduleContext[moduleId]) {
+    state.moduleContext[moduleId] = null;
+  }
+  state.moduleContext[moduleId] = context || null;
+}
+
+function clearModuleContext(moduleId) {
+  if (!state.moduleContext[moduleId]) return;
+  state.moduleContext[moduleId] = null;
+  if (moduleId === "atendimento") {
+    renderDemands();
+    return;
+  }
+  if (moduleId === "crm") {
+    renderCRM();
+    return;
+  }
+  if (moduleId === "agenda") {
+    renderAgenda();
+  }
+}
+
+function renderModuleContext(moduleId, count, emptyLabel) {
+  const panel = $(`#${moduleId}-context`);
+  if (!panel) return;
+  const context = state.moduleContext[moduleId];
+  if (!context) {
+    panel.classList.add("hidden");
+    panel.innerHTML = "";
+    return;
+  }
+  const meta = contextMetaList(context, [typeof count === "number" ? `${count} item(ns)` : "", emptyLabel]).filter(Boolean);
+  panel.classList.remove("hidden");
+  panel.innerHTML = `
+    <div>
+      <p class="eyebrow">${escapeHtml(context.eyebrow || "Filtro aplicado")}</p>
+      <strong>${escapeHtml(context.title || "Contexto ativo")}</strong>
+      <p>${escapeHtml(context.description || "A visualizacao atual esta filtrada a partir de um contexto vindo do painel ou do app do vereador.")}</p>
+      <div class="module-context-meta">${meta.map((item) => `<span class="module-context-chip">${escapeHtml(item)}</span>`).join("")}</div>
+    </div>
+    <button type="button" class="secondary" data-clear-module-context="${escapeHtml(moduleId)}">Limpar filtro</button>
+  `;
+}
+
+function demandMatchesModuleContext(item) {
+  const context = state.moduleContext.atendimento;
+  if (!context) return true;
+  if (context.statuses?.length && !context.statuses.includes(item.status)) return false;
+  if (context.territory && !sameTerritoryScope(demandTerritory(item), context.territory)) return false;
+  if (typeof context.predicate === "function" && !context.predicate(item)) return false;
+  return true;
+}
+
+function contactMatchesModuleContext(item) {
+  const context = state.moduleContext.crm;
+  if (!context) return true;
+  if (context.onlyLeadership && !isLeadershipContact(item)) return false;
+  if (context.engagements?.length && !context.engagements.includes(item.engajamento)) return false;
+  if (context.territory && !sameTerritoryScope(item.territorio_nome || item.bairro || "Sem territorio", context.territory)) return false;
+  if (typeof context.predicate === "function" && !context.predicate(item)) return false;
+  return true;
+}
+
+function agendaMatchesModuleContext(item) {
+  const context = state.moduleContext.agenda;
+  if (!context) return true;
+  if (context.onlyPending && ["REALIZADO", "CANCELADO"].includes(item.status)) return false;
+  if (typeof context.predicate === "function" && !context.predicate(item)) return false;
+  return true;
+}
+
+function openDemandModuleContext(filters = {}) {
+  setModuleContext("atendimento", {
+    title: filters.title || "Demandas",
+    eyebrow: filters.eyebrow || "Acompanhamento e acoes",
+    description: filters.description || "A fila de atendimento foi filtrada no proprio modulo para preservar contexto, selecao e operacao.",
+    statuses: filters.statuses || null,
+    territory: filters.territory || "",
+    predicate: filters.predicate,
+    meta: contextMetaList(filters, []),
+  });
+  navigateTo("atendimento");
+  renderDemands();
+}
+
+function openContactModuleContext(filters = {}) {
+  setModuleContext("crm", {
+    title: filters.title || "Contatos",
+    eyebrow: filters.eyebrow || "Relacionamento politico",
+    description: filters.description || "A base de relacionamento foi filtrada no proprio modulo para manter leitura e navegacao no mesmo fluxo.",
+    onlyLeadership: Boolean(filters.onlyLeadership),
+    engagements: filters.engagements || null,
+    territory: filters.territory || "",
+    predicate: filters.predicate,
+    meta: contextMetaList(filters, []),
+  });
+  navigateTo("crm");
+  renderCRM();
+}
+
+function openAgendaModuleContext(filters = {}) {
+  setModuleContext("agenda", {
+    title: filters.title || "Agenda",
+    eyebrow: filters.eyebrow || "Agenda politica",
+    description: filters.description || "A agenda foi filtrada no proprio modulo para manter o encadeamento com compromissos e relatorios.",
+    onlyPending: Boolean(filters.onlyPending),
+    predicate: filters.predicate,
+    meta: contextMetaList(filters, []),
+  });
+  navigateTo("agenda");
+  renderAgenda();
 }
 
 function bindElementEvent(selector, eventName, handler) {
@@ -1122,20 +1258,24 @@ function executeAssistantAction(action, section, entityId) {
   }
   if (action === "open-territory-demand-list") {
     const territory = territoryFromAssistantContext();
-    openDemandList({
+    openDemandModuleContext({
       title: `Demandas em ${territory.name}`,
       eyebrow: "Territorio priorizado",
+      description: `Leitura territorial aberta no modulo de atendimento para ${territory.name}.`,
       territory: territory.name,
+      meta: [territory.name],
     });
     refreshAssistantContext({ contexto_tipo: "territorio", contexto_id: territory.id || null, modulo: "executivo", origem: "ia", filtro: territory.name }, { force: true });
     return;
   }
   if (action === "open-territory-contact-list") {
     const territory = territoryFromAssistantContext();
-    openContactList({
+    openContactModuleContext({
       title: `Contatos em ${territory.name}`,
       eyebrow: "Base territorial",
+      description: `Base territorial filtrada no CRM para ${territory.name}.`,
       territory: territory.name,
+      meta: [territory.name],
     });
     refreshAssistantContext({ contexto_tipo: "territorio", contexto_id: territory.id || null, modulo: "executivo", origem: "ia", filtro: territory.name }, { force: true });
     return;
@@ -1363,6 +1503,10 @@ function openContactList(filters = {}) {
       if (!filters.territory) return true;
       return sameTerritoryScope(item.territorio_nome || item.bairro || "Sem territorio", filters.territory);
     })
+    .filter((item) => {
+      if (typeof filters.predicate !== "function") return true;
+      return filters.predicate(item);
+    })
     .map((item) =>
       renderListViewItem(
         item.nome,
@@ -1382,6 +1526,119 @@ function openContactList(filters = {}) {
     items,
     emptyMessage: "Nenhum contato encontrado para este filtro.",
   });
+}
+
+async function applyRequestedContextFromUrl() {
+  const context = requestedContextFromUrl();
+  if (!context.section && !context.focus && !context.demandId && !context.contactId && !context.territoryId && !context.teamId && !context.userId) {
+    return false;
+  }
+
+  if (context.section && document.getElementById(context.section)) {
+    navigateTo(context.section);
+  }
+
+  if (context.demandId && state.demands.some((item) => item.id === context.demandId)) {
+    state.selectedDemandId = context.demandId;
+    navigateTo("atendimento");
+    renderDemands();
+    await refreshAssistantContext({ contexto_tipo: "demanda", contexto_id: context.demandId, modulo: "atendimento", origem: "deep-link" }, { force: true });
+    return true;
+  }
+
+  if (context.contactId && state.contacts.some((item) => item.id === context.contactId)) {
+    state.selectedContactId = context.contactId;
+    navigateTo("crm");
+    renderCRM();
+    await refreshAssistantContext({ contexto_tipo: "contato", contexto_id: context.contactId, modulo: "crm", origem: "deep-link" }, { force: true });
+    return true;
+  }
+
+  const territory = context.territoryId ? state.territories.find((item) => item.id === context.territoryId) : null;
+  const territoryName = territory?.nome || "";
+
+  if (context.focus === "demandas_abertas") {
+    openDemandModuleContext({
+      title: "Demandas abertas",
+      eyebrow: "Acompanhamento e acoes",
+      description: "Fila viva do mandato com demandas ainda em curso, sem sair da tela de atendimento.",
+      statuses: ["ABERTA", "EM_TRIAGEM", "EM_ATENDIMENTO", "ENCAMINHADA", "AGUARDANDO_RETORNO", "REABERTA"],
+      meta: ["Recorte vindo do painel do vereador"],
+    });
+    await refreshAssistantContext({ contexto_tipo: "dashboard_card", modulo: "atendimento", origem: "deep-link", filtro: context.focus }, { force: true });
+    return true;
+  }
+
+  if (context.focus === "agenda") {
+    openAgendaModuleContext({
+      title: "Agenda do mandato",
+      eyebrow: "Compromissos em acompanhamento",
+      description: "Compromissos pendentes filtrados dentro do modulo de agenda.",
+      onlyPending: true,
+      meta: ["Recorte vindo do painel do vereador"],
+    });
+    await refreshAssistantContext({ contexto_tipo: "dashboard_card", modulo: "agenda", origem: "deep-link", filtro: context.focus }, { force: true });
+    return true;
+  }
+
+  if (context.focus === "contatos") {
+    openContactModuleContext({
+      title: "Base cidada",
+      eyebrow: "Relacionamento politico",
+      description: "Base de relacionamento aberta no proprio CRM com filtro persistente.",
+      meta: ["Recorte vindo do painel do vereador"],
+    });
+    await refreshAssistantContext({ contexto_tipo: "dashboard_card", modulo: "crm", origem: "deep-link", filtro: context.focus }, { force: true });
+    return true;
+  }
+
+  if (context.focus === "relacionamento" || context.focus === "mobilized") {
+    openContactModuleContext({
+      title: "Base mobilizada",
+      eyebrow: "Relacionamento politico",
+      description: "Contatos com maior propensao de resposta e mobilizacao, filtrados no CRM.",
+      engagements: ["FORTE", "ALTO"],
+      meta: ["Engajamento forte"],
+    });
+    await refreshAssistantContext({ contexto_tipo: "dashboard_card", modulo: "crm", origem: "deep-link", filtro: context.focus }, { force: true });
+    return true;
+  }
+
+  if (context.focus === "leaders") {
+    openContactModuleContext({
+      title: "Liderancas territoriais",
+      eyebrow: "Relacionamento politico",
+      description: "Recorte de liderancas territoriais mantido no CRM.",
+      onlyLeadership: true,
+      meta: ["Recorte de liderancas"],
+    });
+    await refreshAssistantContext({ contexto_tipo: "dashboard_card", modulo: "crm", origem: "deep-link", filtro: context.focus }, { force: true });
+    return true;
+  }
+
+  if (context.focus === "territorio" && territoryName) {
+    openDemandModuleContext({
+      title: `Demandas em ${territoryName}`,
+      eyebrow: "Territorio priorizado",
+      description: `Demandas ligadas ao territorio ${territoryName}, mantendo a operacao dentro do atendimento.`,
+      territory: territoryName,
+      meta: [territoryName],
+    });
+    await refreshAssistantContext({ contexto_tipo: "territorio", contexto_id: context.territoryId, modulo: "executivo", origem: "deep-link", filtro: territoryName, territorio: territoryName }, { force: true });
+    return true;
+  }
+
+  if (context.section === "cadastros" && (context.teamId || context.userId)) {
+    await refreshAssistantContext({
+      contexto_tipo: context.teamId ? "equipe" : "usuario",
+      contexto_id: context.teamId || context.userId,
+      modulo: "cadastros",
+      origem: "deep-link",
+    }, { force: true });
+    return true;
+  }
+
+  return Boolean(context.section);
 }
 
 function openAgendaList(filters = {}) {
@@ -1459,17 +1716,21 @@ function openOfficeList() {
 
 function handleDashboardAction(action) {
   if (action === "open-demands") {
-    openDemandList({ title: "Demandas abertas", statuses: ["ABERTA", "EM_TRIAGEM", "EM_ATENDIMENTO", "ENCAMINHADA", "AGUARDANDO_RETORNO", "REABERTA"] });
+    openDemandModuleContext({
+      title: "Demandas abertas",
+      statuses: ["ABERTA", "EM_TRIAGEM", "EM_ATENDIMENTO", "ENCAMINHADA", "AGUARDANDO_RETORNO", "REABERTA"],
+      meta: ["Fila viva do mandato"],
+    });
     refreshAssistantContext({ contexto_tipo: "dashboard_card", modulo: "executivo", origem: "dashboard-card", filtro: action }, { force: true });
     return;
   }
   if (action === "contacts") {
-    openContactList({ title: "Contatos" });
+    openContactModuleContext({ title: "Contatos", meta: ["Base completa"] });
     refreshAssistantContext({ contexto_tipo: "dashboard_card", modulo: "executivo", origem: "dashboard-card", filtro: action }, { force: true });
     return;
   }
   if (action === "leadership") {
-    openContactList({ title: "Liderancas", onlyLeadership: true });
+    openContactModuleContext({ title: "Liderancas", onlyLeadership: true, meta: ["Recorte de liderancas"] });
     refreshAssistantContext({ contexto_tipo: "dashboard_card", modulo: "executivo", origem: "dashboard-card", filtro: action }, { force: true });
     return;
   }
@@ -1479,42 +1740,46 @@ function handleDashboardAction(action) {
     return;
   }
   if (action === "sla-risk") {
-    openDemandList({
+    openDemandModuleContext({
       title: "Demandas em risco de SLA",
       eyebrow: "Prazos quase vencendo",
+      description: "Fila filtrada pelas demandas que exigem resposta rapida para evitar vencimento.",
       predicate: (item) => item.sla_status === "EM_RISCO",
+      meta: ["SLA em risco"],
     });
     refreshAssistantContext({ contexto_tipo: "modulo", modulo: "atendimento", origem: "sla-risk" }, { force: true });
     return;
   }
   if (action === "sla-overdue") {
-    openDemandList({
+    openDemandModuleContext({
       title: "Demandas com SLA vencido",
       eyebrow: "Risco operacional imediato",
+      description: "Fila filtrada pelas demandas ja vencidas no SLA.",
       predicate: (item) => item.sla_status === "VENCIDO",
+      meta: ["SLA vencido"],
     });
     refreshAssistantContext({ contexto_tipo: "modulo", modulo: "atendimento", origem: "sla-overdue" }, { force: true });
     return;
   }
   if (action === "strong-engagement") {
-    openContactList({
+    openContactModuleContext({
       title: "Engajamento forte",
       eyebrow: "Base mobilizada",
       engagements: ["FORTE", "ALTO"],
+      meta: ["Alta resposta politica"],
     });
     refreshAssistantContext({ contexto_tipo: "dashboard_card", modulo: "executivo", origem: "dashboard-card", filtro: action }, { force: true });
     return;
   }
   if (action === "treat-risk") {
     const territory = sentimentTerritoryFocus();
-    openDemandList({
+    openDemandModuleContext({
       title: territory ? `Demandas em risco de SLA em ${territory}` : "Demandas em risco de SLA",
       eyebrow: "Resposta orientada por sentimento",
       territory: territory || undefined,
       predicate: (item) => item.sla_status === "EM_RISCO",
-      emptyMessage: territory
-        ? `Nenhuma demanda com SLA em risco encontrada em ${territory}.`
-        : "Nenhuma demanda com SLA em risco encontrada.",
+      description: territory ? `Resposta filtrada por territorio ${territory} para demandas em risco.` : "Resposta filtrada para demandas em risco de SLA.",
+      meta: [territory || "Todos os territorios"],
     });
     refreshAssistantContext({
       contexto_tipo: "sentimento",
@@ -1529,14 +1794,13 @@ function handleDashboardAction(action) {
   }
   if (action === "treat-overdue") {
     const territory = sentimentTerritoryFocus();
-    openDemandList({
+    openDemandModuleContext({
       title: territory ? `Demandas com SLA vencido em ${territory}` : "Demandas com SLA vencido",
       eyebrow: "Resposta orientada por sentimento",
       territory: territory || undefined,
       predicate: (item) => item.sla_status === "VENCIDO",
-      emptyMessage: territory
-        ? `Nenhuma demanda com SLA vencido encontrada em ${territory}.`
-        : "Nenhuma demanda com SLA vencido encontrada.",
+      description: territory ? `Resposta filtrada por territorio ${territory} para demandas vencidas.` : "Resposta filtrada para demandas com SLA vencido.",
+      meta: [territory || "Todos os territorios"],
     });
     refreshAssistantContext({
       contexto_tipo: "sentimento",
@@ -1551,11 +1815,12 @@ function handleDashboardAction(action) {
   }
   if (action === "activate-base") {
     const territory = sentimentTerritoryFocus();
-    openContactList({
+    openContactModuleContext({
       title: territory ? `Base para ativar em ${territory}` : "Base para ativar",
       eyebrow: "Mobilizacao orientada por sentimento",
       engagements: ["FORTE", "ALTO"],
       territory: territory || undefined,
+      meta: [territory || "Todos os territorios"],
     });
     refreshAssistantContext({
       contexto_tipo: "sentimento",
@@ -1569,10 +1834,11 @@ function handleDashboardAction(action) {
     return;
   }
   if (action === "pending-agenda") {
-    openAgendaList({
+    openAgendaModuleContext({
       title: "Agenda pendente",
       eyebrow: "Compromissos em acompanhamento",
       onlyPending: true,
+      meta: ["Execucao pendente"],
     });
     refreshAssistantContext({ contexto_tipo: "dashboard_card", modulo: "executivo", origem: "dashboard-card", filtro: action }, { force: true });
     return;
@@ -1649,6 +1915,12 @@ function handleGlobalClick(event) {
     return;
   }
 
+  const clearContextButton = event.target.closest("[data-clear-module-context]");
+  if (clearContextButton) {
+    clearModuleContext(clearContextButton.dataset.clearModuleContext);
+    return;
+  }
+
   const reportButton = event.target.closest("[data-report-section]");
   if (reportButton) {
     navigateTo(reportButton.dataset.reportSection);
@@ -1674,10 +1946,12 @@ function handleGlobalClick(event) {
   const territoryAction = event.target.closest(".heat-action[data-territory]");
   if (territoryAction) {
     const territory = territoryAction.dataset.territory;
-    openDemandList({
+    openDemandModuleContext({
       title: `Demandas em ${territory}`,
       eyebrow: "Territorio priorizado",
+      description: `Recorte territorial aberto diretamente no modulo de atendimento para ${territory}.`,
       territory,
+      meta: [territory],
     });
     refreshAssistantContext({
       contexto_tipo: "territorio",
@@ -1796,10 +2070,12 @@ function handleGlobalKeydown(event) {
     return;
   }
   if (actionTarget.dataset.territory) {
-    openDemandList({
+    openDemandModuleContext({
       title: `Demandas em ${actionTarget.dataset.territory}`,
       eyebrow: "Territorio priorizado",
+      description: `Recorte territorial aberto diretamente no atendimento para ${actionTarget.dataset.territory}.`,
       territory: actionTarget.dataset.territory,
+      meta: [actionTarget.dataset.territory],
     });
     refreshAssistantContext({
       contexto_tipo: "territorio",
@@ -2030,20 +2306,22 @@ function renderSlaPanel() {
 }
 
 function renderDemands() {
-  if (
-    (!state.selectedDemandId || !state.demands.some((item) => item.id === state.selectedDemandId)) &&
-    state.demands[0]
-  ) {
-    state.selectedDemandId = state.demands[0].id;
-  }
   const query = state.globalSearch.trim().toLowerCase();
   const activeDemands = state.demands.filter((item) => {
     if (item.status === "ARQUIVADA" || item.status === "EXCLUIDO") return false;
+    if (!demandMatchesModuleContext(item)) return false;
     if (!query) return true;
     return [item.titulo, item.descricao, item.cidadao_nome, item.tipo_demanda, demandTerritory(item), item.responsavel_nome].some((value) =>
       String(value || "").toLowerCase().includes(query),
     );
   });
+  if ((!state.selectedDemandId || !activeDemands.some((item) => item.id === state.selectedDemandId)) && activeDemands[0]) {
+    state.selectedDemandId = activeDemands[0].id;
+  }
+  if (!activeDemands.length) {
+    state.selectedDemandId = null;
+  }
+  renderModuleContext("atendimento", activeDemands.length, activeDemands.length ? "" : "Nenhuma demanda neste recorte");
   const board = $("#demand-board");
   if (board) {
     board.innerHTML = DEMAND_COLUMNS.map(([status, title]) => {
@@ -2350,6 +2628,7 @@ function startContactEdit(contactId) {
 }
 
 function renderContactOptions() {
+  const crmContacts = state.contacts.filter((item) => item.tipo_contato !== "ORGAO_PUBLICO" && !["EXCLUIDO", "INATIVO"].includes(item.status) && contactMatchesModuleContext(item));
   const demandanteContacts = activeDemandanteContacts();
   const contactOptions =
     '<option value="">Selecione</option>' +
@@ -2372,19 +2651,29 @@ function renderContactOptions() {
     const select = $(selector);
     if (!select) return;
     const current = select.value || (selector === "#crm-contact-select" ? state.selectedContactId : "");
-    select.innerHTML = contactOptions;
-    if (state.contacts.some((item) => item.id === current)) {
+    const optionsMarkup =
+      '<option value="">Selecione</option>' +
+      crmContacts
+        .map((item) => `<option value="${escapeHtml(item.id)}">${escapeHtml(item.nome)} - ${escapeHtml(demandanteTypeLabel(item.tipo_contato || "CIDADAO"))}</option>`)
+        .join("");
+    select.innerHTML = selector === "#crm-contact-select" ? optionsMarkup : contactOptions;
+    if ((selector === "#crm-contact-select" ? crmContacts : state.contacts).some((item) => item.id === current)) {
       select.value = current;
     }
   });
 }
 
 function renderCRM() {
-  if ((!state.selectedContactId || !state.contacts.some((item) => item.id === state.selectedContactId)) && state.contacts[0]) {
-    state.selectedContactId = state.contacts[0].id;
+  const visibleContacts = state.contacts.filter((item) => item.tipo_contato !== "ORGAO_PUBLICO" && !["EXCLUIDO", "INATIVO"].includes(item.status) && contactMatchesModuleContext(item));
+  if ((!state.selectedContactId || !visibleContacts.some((item) => item.id === state.selectedContactId)) && visibleContacts[0]) {
+    state.selectedContactId = visibleContacts[0].id;
   }
-  const contact = selectedContact();
+  if (!visibleContacts.length) {
+    state.selectedContactId = null;
+  }
+  const contact = visibleContacts.find((item) => item.id === state.selectedContactId) || visibleContacts[0] || null;
   renderContactOptions();
+  renderModuleContext("crm", visibleContacts.length, visibleContacts.length ? "" : "Nenhum contato neste recorte");
   const select = $("#crm-contact-select");
   if (select && contact) select.value = contact.id;
   if (!contact) {
@@ -2560,8 +2849,10 @@ function renderTerritories() {
 }
 
 function renderAgenda() {
+  const visibleAgenda = state.agenda.filter((item) => agendaMatchesModuleContext(item));
+  renderModuleContext("agenda", visibleAgenda.length, visibleAgenda.length ? "" : "Nenhum compromisso neste recorte");
   $("#agenda-list").innerHTML =
-    state.agenda
+    visibleAgenda
       .map(
         (item) => `
           <article class="row">
@@ -2580,7 +2871,7 @@ function renderAgenda() {
         `,
       )
       .join("") || "<p>Nenhum evento cadastrado.</p>";
-  const first = state.agenda[0];
+  const first = visibleAgenda[0];
   $("#agenda-summary").textContent = first
     ? `${first.titulo} em ${first.local_texto || "local a confirmar"} - ${labelCode(first.status)}.`
     : "Nenhum compromisso encontrado.";
@@ -2982,10 +3273,13 @@ async function loadData() {
   state.audit = audit.data;
   state.reportCatalog = reportCatalog.data;
   renderAll();
+  const appliedUrlContext = await applyRequestedContextFromUrl();
   if (state.sentimentFilters.canal || state.sentimentFilters.periodo || state.sentimentFilters.territorio) {
     await refreshSentimentSummary();
   }
-  await refreshAssistantContext(state.assistantContext, { force: true });
+  if (!appliedUrlContext) {
+    await refreshAssistantContext(state.assistantContext, { force: true });
+  }
 }
 
 async function login(event) {
